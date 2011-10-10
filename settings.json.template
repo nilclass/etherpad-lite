@@ -9,11 +9,14 @@
   "port" : 9001,
   
   //The Type of the database. You can choose between sqlite and mysql
-  "dbType" : "dirty",
+  "dbType" : "dav",
   //the database specific settings
   "dbSettings" : {
-                   "filename" : "../var/dirty.db"
-                 },
+    "davUrl" : "/apps/remoteStorage/compat.php/test/remoteStorage/",
+    "userAddress" : "test@yourremotestorage.com",
+    "dataScope" : "jacktodoapp",
+    "davToken" : "dGVzdEB5b3VycmVtb3Rlc3RvcmFnZS5jb206NGU5MmNjYTFhNDFhYg=="
+  },
                  
   /* An Example of MySQL Configuration
    "dbType" : "mysql",
