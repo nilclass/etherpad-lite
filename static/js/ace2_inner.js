@@ -85,6 +85,11 @@ function OUTER(gscope)
   var doesWrap = true;
   var hasLineNumbers = true;
   var isStyled = true;
+  
+  // check for mobile os presence
+  var ua = navigator.userAgent.toLowerCase();
+  var isAndroid = ua.indexOf("android") > -1;
+  var isMobileSafari = ua.indexOf("mobile") > -1;
 
   // space around the innermost iframe element
   var iframePadLeft = MIN_LINEDIV_WIDTH + LINE_NUMBER_PADDING_RIGHT + EDIT_BODY_PADDING_LEFT;
@@ -1105,6 +1110,8 @@ function OUTER(gscope)
     else if (k == "showslinenumbers")
     {
       hasLineNumbers = !! value;
+      // disable line numbers on mobile devices
+      if(isAndroid || isMobileSafari) hasLineNumbers = false;
       setClassPresence(sideDiv, "sidedivhidden", !hasLineNumbers);
       fixView();
     }
@@ -4050,8 +4057,6 @@ function OUTER(gscope)
     catch (e)
     {}
     if (!origSelectionRange) return false;
-    var selectionParent = origSelectionRange.parentElement();
-    if (selectionParent.ownerDocument != doc) return false;
     return true;
   }
 
