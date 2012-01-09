@@ -52,7 +52,10 @@ exports.checkAccess = function (padID, sessionID, token, password, callback)
   else
   {
     // it's not a group pad, means we can grant access
-    if(padID.indexOf("$") == -1)
+    // we're disabeling groups for now...
+    // will bring them back later.
+    // if(padID.indexOf("$") == -1)
+    if(true)
     {
       //get author for this token
       authorManager.getAuthor4Token(token, function(err, author)

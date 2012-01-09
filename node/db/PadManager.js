@@ -21,7 +21,7 @@
 var ERR = require("async-stacktrace");
 var customError = require("../utils/customError");
 require("../db/Pad");
-var db = require("./DB").db;
+var remote = require("./RemoteStorage");
 
 /** 
  * An Object containing all known Pads. Provides "get" and "set" functions,
@@ -88,7 +88,6 @@ exports.getPad = function(id, text, callback)
   else
   {
     pad = new Pad(id);
-    
     //initalize the pad
     pad.init(text, function(err)
     {
@@ -103,7 +102,8 @@ exports.getPad = function(id, text, callback)
 //checks if a pad exists
 exports.doesPadExists = function(padId, callback)
 {
-  db.get("pad:"+padId, function(err, value)
+  storage = remote.get(id.split("$")[0], null);
+  storage.get("pad:"+padId, function(err, value)
   {
     if(ERR(err, callback)) return;
     callback(null, value != null);  
@@ -112,7 +112,7 @@ exports.doesPadExists = function(padId, callback)
 
 exports.isValidPadId = function(padId)
 {
-  return /^(g.[a-zA-Z0-9]{16}\$)?[^$]{1,50}$/.test(padId);
+  return /^([a-zA-Z0-9]+\$)?[^$]{1,50}$/.test(padId);
 }
 
 //removes a pad from the array

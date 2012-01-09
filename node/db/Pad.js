@@ -7,7 +7,7 @@ require('joose');
 var ERR = require("async-stacktrace");
 var Changeset = require("../utils/Changeset");
 var AttributePoolFactory = require("../utils/AttributePoolFactory");
-var db = require("./DB").db;
+var remote = require("./RemoteStorage");
 var async = require("async");
 var settings = require('../utils/Settings');
 var authorManager = require("./AuthorManager");
@@ -62,7 +62,9 @@ Class('Pad', {
       init: null
     }, // passwordHash
     
-    id : { is : 'r' }
+    id : { is : 'r' },
+
+    storage : { is : 'r' }
   },
 
   methods : {
@@ -71,6 +73,7 @@ Class('Pad', {
     {
         return {
             'id' : id,
+            'storage' : remote.get(id.split("$")[0], null)
         }
     },
     
@@ -99,8 +102,8 @@ Class('Pad', {
         newRevData.meta.atext = this.atext;
       }
       
-      db.set("pad:"+this.id+":revs:"+newRev, newRevData);
-      db.set("pad:"+this.id, {atext: this.atext, 
+      this.storage.set("pad:"+this.id+":revs:"+newRev, newRevData);
+      this.storage.set("pad:"+this.id, {atext: this.atext, 
                               pool: this.pool.toJsonable(), 
                               head: this.head, 
                               chatHead: this.chatHead, 
@@ -110,17 +113,17 @@ Class('Pad', {
     
     getRevisionChangeset : function(revNum, callback) 
     {
-      db.getSub("pad:"+this.id+":revs:"+revNum, ["changeset"], callback);
+      this.storage.getSub("pad:"+this.id+":revs:"+revNum, ["changeset"], callback);
     }, // getRevisionChangeset
     
     getRevisionAuthor : function(revNum, callback) 
     {      
-      db.getSub("pad:"+this.id+":revs:"+revNum, ["meta", "author"], callback);
+      this.storage.getSub("pad:"+this.id+":revs:"+revNum, ["meta", "author"], callback);
     }, // getRevisionAuthor
     
     getRevisionDate : function(revNum, callback) 
     {      
-      db.getSub("pad:"+this.id+":revs:"+revNum, ["meta", "timestamp"], callback);
+      this.storage.getSub("pad:"+this.id+":revs:"+revNum, ["meta", "timestamp"], callback);
     }, // getRevisionAuthor
     
     getAllAuthors : function() 
@@ -163,7 +166,7 @@ Class('Pad', {
             //get the atext of the key revision
             function (callback)
             {
-              db.getSub("pad:"+_this.id+":revs:"+keyRev, ["meta", "atext"], function(err, _atext)
+              this.storage.getSub("pad:"+_this.id+":revs:"+keyRev, ["meta", "atext"], function(err, _atext)
               {
                 if(ERR(err, callback)) return;
                 atext = Changeset.cloneAText(_atext);
@@ -235,9 +238,9 @@ Class('Pad', {
     {
       this.chatHead++;
       //save the chat entry in the database
-      db.set("pad:"+this.id+":chat:"+this.chatHead, {"text": text, "userId": userId, "time": time});
+      this.storage.set("pad:"+this.id+":chat:"+this.chatHead, {"text": text, "userId": userId, "time": time});
       //save the new chat head
-      db.setSub("pad:"+this.id, ["chatHead"], this.chatHead);
+      this.storage.setSub("pad:"+this.id, ["chatHead"], this.chatHead);
     },
     
     getChatMessage: function(entryNum, callback)
@@ -249,7 +252,7 @@ Class('Pad', {
         //get the chat entry 
         function(callback)
         {
-          db.get("pad:"+_this.id+":chat:"+entryNum, function(err, _entry)
+          this.storage.get("pad:"+_this.id+":chat:"+entryNum, function(err, _entry)
           {
             if(ERR(err, callback)) return;
             entry = _entry;
@@ -353,7 +356,7 @@ Class('Pad', {
       }
     
       //try to load the pad  
-      db.get("pad:"+this.id, function(err, value)
+      this.storage.get("pad:"+this.id, function(err, value)
       {
         if(ERR(err, callback)) return;
         
@@ -410,11 +413,12 @@ Class('Pad', {
             function(callback)
             {
               //is it a group pad?
-              if(padID.indexOf("$")!=-1)
+              // we're not using group pads for now
+              if(false) // padID.indexOf("$")!=-1)
               {
                 var groupID = padID.substring(0,padID.indexOf("$"));
                 
-                db.get("group:" + groupID, function (err, group)
+                this.storage.get("group:" + groupID, function (err, group)
                 {
                   if(ERR(err, callback)) return;
                   
@@ -422,7 +426,7 @@ Class('Pad', {
                   delete group.pads[padID];
                   
                   //set the new value
-                  db.set("group:" + groupID, group);
+                  this.storage.set("group:" + groupID, group);
                   
                   callback();
                 });
@@ -440,8 +444,8 @@ Class('Pad', {
               {
                 if(ERR(err, callback)) return;
                 
-                db.remove("pad2readonly:" + padID);
-                db.remove("readonly2pad:" + readonlyID);
+                this.storage.remove("pad2readonly:" + padID);
+                this.storage.remove("readonly2pad:" + readonlyID);
                 
                 callback();
               });
@@ -453,7 +457,7 @@ Class('Pad', {
               
               for(var i=0;i<=chatHead;i++)
               {
-                db.remove("pad:"+padID+":chat:"+i);
+                this.storage.remove("pad:"+padID+":chat:"+i);
               }
               
               callback();
@@ -465,7 +469,7 @@ Class('Pad', {
               
               for(var i=0;i<=revHead;i++)
               {
-                db.remove("pad:"+padID+":revs:"+i);
+                this.storage.remove("pad:"+padID+":revs:"+i);
               }
               
               callback();
@@ -475,7 +479,7 @@ Class('Pad', {
         //delete the pad entry and delete pad from padManager
         function(callback)
         {
-          db.remove("pad:"+padID);
+          this.storage.remove("pad:"+padID);
           padManager.unloadPad(padID);
           callback();
         }
@@ -489,12 +493,12 @@ Class('Pad', {
     setPublicStatus: function(publicStatus)
     {
       this.publicStatus = publicStatus;
-      db.setSub("pad:"+this.id, ["publicStatus"], this.publicStatus);
+      this.storage.setSub("pad:"+this.id, ["publicStatus"], this.publicStatus);
     },
     setPassword: function(password)
     {
       this.passwordHash = password == null ? null : hash(password, generateSalt());
-      db.setSub("pad:"+this.id, ["passwordHash"], this.passwordHash);
+      this.storage.setSub("pad:"+this.id, ["passwordHash"], this.passwordHash);
     }, 
     isCorrectPassword: function(password)
     {
