@@ -7,11 +7,11 @@ require('joose');
 var ERR = require("async-stacktrace");
 var Changeset = require("../utils/Changeset");
 var AttributePoolFactory = require("../utils/AttributePoolFactory");
-var remote = require("./RemoteStorage");
 var async = require("async");
 var settings = require('../utils/Settings');
 var authorManager = require("./AuthorManager");
 var padManager = require("./PadManager");
+var storageManager = require("./StorageManager");
 var padMessageHandler = require("../handler/PadMessageHandler");
 var readOnlyManager = require("./ReadOnlyManager");
 var crypto = require("crypto");
@@ -73,7 +73,8 @@ Class('Pad', {
     {
         return {
             'id' : id,
-            'storage' : remote.get(id.split("$")[0], null)
+            // TODO: let's use callbacks for this
+            'storage' : storageManager.get(id.split("$")[0], null)
         }
     },
     

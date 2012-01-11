@@ -27,6 +27,7 @@ var authorManager = require("../db/AuthorManager");
 var readOnlyManager = require("../db/ReadOnlyManager");
 var settings = require('../utils/Settings');
 var securityManager = require("../db/SecurityManager");
+var storageManager = require("../db/StorageManager");
 var log4js = require('log4js');
 var os = require("os");
 var messageLogger = log4js.getLogger("message");
@@ -614,18 +615,45 @@ function handleClientReady(client, message)
     messageLogger.warn("Dropped message, CLIENT_READY Message has a unknown protocolVersion '" + message.protocolVersion + "'!");
     return;
   }
+  if(!message.subdomain)
+  {
+    messageLogger.warn("Dropped message, CLIENT_READY Message has no subdomain!");
+    return;
+  }
+  if(!message.keyName)
+  {
+    messageLogger.warn("Dropped message, CLIENT_READY Message has no keyName!");
+    return;
+  }
 
   var author;
   var authorName;
   var authorColorId;
   var pad;
-  var padId = message.storage + '$' + message.padId;
-  var storage;
+  var padId = message.userName + '$' + message.padId;
   var historicalAuthorData = {};
   var readOnlyId;
   var chatMessages;
 
   async.series([
+    //init storage
+    function(callback)
+    {
+      storageManager.init(message.userName, message.subdomain, message.keyName, function(err, statusObject)
+      {
+        if(ERR(err, callback)) return;
+
+        //we have a storage
+        if(statusObject.storageStatus == "ready")
+        {
+          callback();
+        }
+        else
+        {
+          client.json.send({storageStatus: statusObject.storageStatus})
+        }
+      });
+    },
     //check permissions
     function(callback)
     {

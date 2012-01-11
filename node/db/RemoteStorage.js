@@ -19,62 +19,34 @@
  * limitations under the License.
  */
 
+var ERR = require("async-stacktrace");
 var ueberDB = require("ueberDB");
 // we'll remove the settings once we really move to remote storage
 var settings = require("../utils/Settings");
 var log4js = require('log4js');
 
 
-// store all remote connections we have
 
-var storages = {
-  get: function (name) { return this[':'+name]; },
-  set: function (name, value) { this[':'+name] = value; },
-  remove: function (name) { delete this[':'+name]; }
-};
 
 /**
- * Get the database for the given name - later this will be the remoteStorage
+ * Init the database for the given name - later this will be the remoteStorage
  * identifier.
  * @param {name} the handle for the remote storage
+ * @param {subdomain}
+ * @param {keyName}
  * @param {Function} callback - if null the function will return the storage.
  */
-exports.get = function(name, callback)
+exports.init = function(name, subdomain, keyName, callback)
 {
-
-  console.warn("accessing " + name);
-  var storage = storages.get(name);
-  if(storage != null)
+  var db_settings = { 'filename' : './var/' + name + '.db' };
+  console.warn("file " + db_settings['filename']);
+  console.warn("subdomain " + subdomain);
+  console.warn("keyName " + keyName);
+  var storage = new ueberDB.database(settings.dbType, db_settings, null, log4js.getLogger("remoteDB"));
+  storage.init(function(err)
   {
-    if(callback != null) {
-      callback(null, storage);
-    }
-    else{
-      return storage;
-    }
-  }
-  else
-  {
-    var db_settings = { 'filename' : './var/' + name + '.db' };
-    console.warn("file " + db_settings['filename']);
-    console.warn("type " + settings.dbType);
-    var storage = new ueberDB.database(settings.dbType, db_settings, null, log4js.getLogger("remoteDB"));
-    storage.init(function(err)
-    {
-      //there was an error while initializing the database, output it and stop 
-      if(err)
-      {
-        console.error("ERROR: Problem while initalizing the database");
-        console.error(err.stack ? err.stack : err);
-      }
-    });
-    console.warn("storage " + storage);
-    storages.set(name, storage);
-    if(callback != null) {
-      callback(null, storage);
-    }
-    else {
-      return storage;
-    }
-  }
+    //there was an error while initializing the remote storage
+    if(ERR(err, callback)) return;
+    callback(null, storage);
+  });
 }

@@ -21,7 +21,7 @@
 var ERR = require("async-stacktrace");
 var customError = require("../utils/customError");
 require("../db/Pad");
-var remote = require("./RemoteStorage");
+var storageManager = require("./StorageManager");
 
 /** 
  * An Object containing all known Pads. Provides "get" and "set" functions,
@@ -102,7 +102,7 @@ exports.getPad = function(id, text, callback)
 //checks if a pad exists
 exports.doesPadExists = function(padId, callback)
 {
-  storage = remote.get(id.split("$")[0], null);
+  storage = storageManager.get(id.split("$")[0], null);
   storage.get("pad:"+padId, function(err, value)
   {
     if(ERR(err, callback)) return;
