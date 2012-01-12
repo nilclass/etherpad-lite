@@ -97,8 +97,9 @@ function getParams()
   var IsnoColors = params["noColors"];
   var hideQRCode = params["hideQRCode"];
   var rtl = params["rtl"];
-  var keyName = params["keyName"];
-  var subdomain = params["subdomain"];
+  var storageAddress = params["storageAddress"];
+  var storageApi = params["storageApi"];
+  var bearerToken = params["bearerToken"];
 
   if(IsnoColors)
   {
@@ -142,12 +143,13 @@ function getParams()
     // If the username is set as a parameter we should set a global value that we can call once we have initiated the pad.
     globalUserName = unescape(userName);
   }
-  if(subdomain)
+  if(storageAddress)
   {
     globalStorage = {
       'userName' : unescape(userName),
-      'keyName' : unescape(keyName),
-      'subdomain' : unescape(subdomain)
+      'storageAddress' : unescape(storageAddress),
+      'storageApi' : unescape(storageApi),
+      'bearerToken' : unescape(bearerToken)
     }
   }
   if(hideQRCode)
@@ -226,8 +228,9 @@ function handshake()
       "token": token,
       "protocolVersion": 2,
       "userName": globalStorage['userName'],
-      "keyName": globalStorage['keyName'],
-      "subdomain": globalStorage['subdomain']
+      "storageAddress": globalStorage['storageAddress'],
+      "storageApi": globalStorage['storageApi'],
+      "bearerToken": globalStorage['bearerToken']
     };
     
     //this is a reconnect, lets tell the server our revisionnumber

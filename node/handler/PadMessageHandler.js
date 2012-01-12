@@ -615,14 +615,14 @@ function handleClientReady(client, message)
     messageLogger.warn("Dropped message, CLIENT_READY Message has a unknown protocolVersion '" + message.protocolVersion + "'!");
     return;
   }
-  if(!message.subdomain)
+  if(!message.storageAddress)
   {
-    messageLogger.warn("Dropped message, CLIENT_READY Message has no subdomain!");
+    messageLogger.warn("Dropped message, CLIENT_READY Message has no storageAddress!");
     return;
   }
-  if(!message.keyName)
+  if(!message.bearerToken)
   {
-    messageLogger.warn("Dropped message, CLIENT_READY Message has no keyName!");
+    messageLogger.warn("Dropped message, CLIENT_READY Message has no bearerToken!");
     return;
   }
 
