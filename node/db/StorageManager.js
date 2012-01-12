@@ -30,9 +30,9 @@ var storages = {
   remove: function (name) { delete this[':'+name]; }
 };
 
-exports.init = function(name, subdomain, keyName, callback)
+exports.init = function(name, settings, callback)
 {
-  remote.init(name, subdomain, keyName, function(err, storage)
+  remote.init(name, settings, function(err, storage)
   {
     console.warn("init " + name);
     if(ERR(err, callback)) return;

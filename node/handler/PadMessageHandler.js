@@ -639,7 +639,12 @@ function handleClientReady(client, message)
     //init storage
     function(callback)
     {
-      storageManager.init(message.userName, message.subdomain, message.keyName, function(err, statusObject)
+      storageSettings = {
+        'storageAddress' : message.storageAddress,
+        'storageApi'     : message.storageApi,
+        'bearerToken'    : message.bearerToken
+      };
+      storageManager.init(message.userName, storageSettings, function(err, statusObject)
       {
         if(ERR(err, callback)) return;
 

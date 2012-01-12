@@ -20,7 +20,7 @@
  */
 
 var ERR = require("async-stacktrace");
-var ueberDB = require("ueberDB");
+var ueberRemote = require("ueberRemoteStorage");
 // we'll remove the settings once we really move to remote storage
 var settings = require("../utils/Settings");
 var log4js = require('log4js');
@@ -31,18 +31,13 @@ var log4js = require('log4js');
 /**
  * Init the database for the given name - later this will be the remoteStorage
  * identifier.
- * @param {name} the handle for the remote storage
- * @param {subdomain}
- * @param {keyName}
+ * @param {userName} the handle for the remote storage
+ * @param {remoteSettings} - storageAddress, storageApi and bearerToken
  * @param {Function} callback - if null the function will return the storage.
  */
-exports.init = function(name, subdomain, keyName, callback)
+exports.init = function(name, settings, callback)
 {
-  var db_settings = { 'filename' : './var/' + name + '.db' };
-  console.warn("file " + db_settings['filename']);
-  console.warn("subdomain " + subdomain);
-  console.warn("keyName " + keyName);
-  var storage = new ueberDB.database(settings.dbType, db_settings, null, log4js.getLogger("remoteDB"));
+  var storage = new ueberRemote.remote(settings.storageApi, settings, null, log4js.getLogger("remoteDB"));
   storage.init(function(err)
   {
     //there was an error while initializing the remote storage
