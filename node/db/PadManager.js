@@ -48,6 +48,7 @@ exports.getPad = function(id, text, callback)
   //check if this is a valid padId
   if(!exports.isValidPadId(id))
   {
+    console.log(id + " is not a valid padId");
     callback(new customError(id + " is not a valid padId","apierror"));
     return;
   }
@@ -112,7 +113,7 @@ exports.doesPadExists = function(padId, callback)
 
 exports.isValidPadId = function(padId)
 {
-  return /^([a-zA-Z0-9]+\$)?[^$]{1,50}$/.test(padId);
+  return /^([^$]+\$)?[^$]{1,50}$/.test(padId);
 }
 
 //removes a pad from the array
