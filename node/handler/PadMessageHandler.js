@@ -615,30 +615,36 @@ function handleClientReady(client, message)
     messageLogger.warn("Dropped message, CLIENT_READY Message has a unknown protocolVersion '" + message.protocolVersion + "'!");
     return;
   }
-  if(!message.storageAddress)
-  {
-    messageLogger.warn("Dropped message, CLIENT_READY Message has no storageAddress!");
-    return;
-  }
-  if(!message.bearerToken)
-  {
-    messageLogger.warn("Dropped message, CLIENT_READY Message has no bearerToken!");
-    return;
-  }
 
   var author;
   var authorName;
   var authorColorId;
-  var pad;
-  var padId = message.userName + '$' + message.padId;
+  var pad, padId;
   var historicalAuthorData = {};
   var readOnlyId;
   var chatMessages;
+
+  if(message.padId.indexOf("$") == -1)
+  {
+    padId = message.userName + '$' + message.padId;
+  }
+  else
+  {
+    padId = message.padId;
+  }
 
   async.series([
     //init storage
     function(callback)
     {
+      // If we don't get the address or the bearer token we assume this is
+      // for collaborating on an existing pad.
+      if(!message.storageAddress || !message.bearerToken)
+      {
+        messageLogger.warn(message.userName+" wants to collaborate on "+padId);
+        callback();
+        return;
+      }
       storageSettings = {
         'storageAddress' : message.storageAddress,
         'storageApi'     : message.storageApi,
