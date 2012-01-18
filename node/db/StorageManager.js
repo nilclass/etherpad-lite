@@ -21,6 +21,7 @@
 
 var ERR = require("async-stacktrace");
 var remote = require("./RemoteStorage");
+var db = require("./DB").db;
 
 // store all remote connections we have
 
@@ -34,9 +35,11 @@ exports.init = function(name, settings, callback)
 {
   remote.init(name, settings, function(err, storage)
   {
-    console.warn("init " + name);
+    console.log("init " + name);
     if(ERR(err, callback)) return;
-    storages.set(name, storage)
+    storages.set(name, storage);
+    db.set("backend:"+name, settings);
+    console.debug("settings: "+require("util").inspect(settings));
     callback(null, {storageStatus: "ready"});
   });
 }
@@ -44,22 +47,26 @@ exports.init = function(name, settings, callback)
 exports.get = function(name, callback)
 {
 
-  console.warn("get " + name);
+  console.log("get " + name);
   var storage = storages.get(name);
+  // not in cache
   if(storage != null)
   {
-    if(callback != null)
-    {
-      callback(null, storage);
-    }
-    else
-    {
-      return storage;
-    }
+    callback(null, storage);
+    return;
   }
-  else
+
+  console.warn("loading "+name+" from db");
+  db.get("backend:"+name, function(err, settings)
   {
-    console.error("Remote storage " + name + " has not been initialized.");
-    callback("Remote storage " + name + " has not been initialized.", null);
-  }
+    if(ERR(err, callback)) return;
+    console.debug("backend: "+require("util").inspect(settings));
+    remote.init(name, settings, function(err, _storage)
+    {
+      console.log("init from settings " + name);
+      if(ERR(err, callback)) return;
+      storages.set(name, _storage);
+      callback(null, _storage);
+    });
+  });
 }

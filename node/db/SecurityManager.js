@@ -19,7 +19,6 @@
  */
 
 var ERR = require("async-stacktrace");
-var db = require("./DB").db;
 var async = require("async");
 var authorManager = require("./AuthorManager");
 var padManager = require("./PadManager");

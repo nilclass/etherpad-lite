@@ -64,18 +64,19 @@ Class('Pad', {
     
     id : { is : 'r' },
 
-    storage : { is : 'r' }
+    storage : {
+      is: 'rw', 
+      init : null
+    }
   },
 
   methods : {
   
     BUILD : function (id) 
     {
-        return {
-            'id' : id,
-            // TODO: let's use callbacks for this
-            'storage' : storageManager.get(id.split("$")[0], null)
-        }
+      return {
+        'id' : id
+      }
     },
     
     appendRevision : function(aChangeset, author) 
@@ -355,105 +356,125 @@ Class('Pad', {
       {
         text = settings.defaultPadText;
       }
-    
-      //try to load the pad  
-      this.storage.get("pad:"+this.id, function(err, value)
-      {
-        if(ERR(err, callback)) return;
-        
-        //if this pad exists, load it
-        if(value != null)
+      
+      async.series([
+        function(callback)
         {
-          _this.head = value.head;
-          _this.atext = value.atext;
-          _this.pool = _this.pool.fromJsonable(value.pool);
-          
-          //ensure we have a local chatHead variable
-          if(value.chatHead != null)
+          // initialize the storage
+          storageManager.get(_this.id.split("$")[0], function(err, _storage)
+            {
+              if(ERR(err,callback)) return;
+              _this.storage = _storage;
+              callback();
+            });
+        },
+        function(callback)
+        {
+          //try to load the pad  
+          _this.storage.get("pad:"+_this.id, function(err, value)
+            {
+              if(ERR(err, callback)) return;
+
+              //if this pad exists, load it
+              if(value != null)
+          {
+            _this.head = value.head;
+            _this.atext = value.atext;
+            _this.pool = _this.pool.fromJsonable(value.pool);
+
+            //ensure we have a local chatHead variable
+            if(value.chatHead != null)
             _this.chatHead = value.chatHead;
-          else
+            else
             _this.chatHead = -1;
-            
+
           //ensure we have a local publicStatus variable
           if(value.publicStatus != null)
             _this.publicStatus = value.publicStatus;
           else
             _this.publicStatus = false; 
-           
+
           //ensure we have a local passwordHash variable
           if(value.passwordHash != null)
             _this.passwordHash = value.passwordHash;
           else
             _this.passwordHash = null;
+          }
+          //this pad doesn't exist, so create it
+              else
+              {
+                var firstChangeset = Changeset.makeSplice("\n", 0, 0, exports.cleanText(text));                      
+
+                _this.appendRevision(firstChangeset, '');
+              }
+
+              callback();
+            });
         }
-        //this pad doesn't exist, so create it
-        else
-        {
-          var firstChangeset = Changeset.makeSplice("\n", 0, 0, exports.cleanText(text));                      
-      
-          _this.appendRevision(firstChangeset, '');
-        }
-        
+      ], function(err)
+      {
+        if(ERR(err, callback)) return;
         callback(null);
-      });
+      }
+      );
     },
     remove: function(callback)
     {
       var padID = this.id;
       var _this = this;
-      
+
       //kick everyone from this pad
       padMessageHandler.kickSessionsFromPad(padID);
-      
+
       async.series([
-        //delete all relations
-        function(callback)
-        {
-          async.parallel([
-            //is it a group pad? -> delete the entry of this pad in the group
-            function(callback)
-            {
-              //is it a group pad?
-              // we're not using group pads for now
-              if(false) // padID.indexOf("$")!=-1)
+          //delete all relations
+          function(callback)
+          {
+            async.parallel([
+              //is it a group pad? -> delete the entry of this pad in the group
+              function(callback)
               {
-                var groupID = padID.substring(0,padID.indexOf("$"));
-                
-                this.storage.get("group:" + groupID, function (err, group)
+                //is it a group pad?
+                // we're not using group pads for now
+                if(false) // padID.indexOf("$")!=-1)
+            {
+              var groupID = padID.substring(0,padID.indexOf("$"));
+
+              this.storage.get("group:" + groupID, function (err, group)
                 {
                   if(ERR(err, callback)) return;
-                  
+
                   //remove the pad entry
                   delete group.pads[padID];
-                  
+
                   //set the new value
                   this.storage.set("group:" + groupID, group);
-                  
+
                   callback();
                 });
-              }
-              //its no group pad, nothing to do here
-              else
+            }
+            //its no group pad, nothing to do here
+                else
+                {
+                  callback();
+                }
+              },
+              //remove the readonly entries
+              function(callback)
               {
-                callback();
-              }
-            },
-            //remove the readonly entries
-            function(callback)
-            {
-              readOnlyManager.getReadOnlyId(padID, function(err, readonlyID)
+                readOnlyManager.getReadOnlyId(padID, function(err, readonlyID)
+                    {
+                      if(ERR(err, callback)) return;
+
+                      this.storage.remove("pad2readonly:" + padID);
+                      this.storage.remove("readonly2pad:" + readonlyID);
+
+                      callback();
+                    });
+              },
+              //delete all chat messages
+              function(callback)
               {
-                if(ERR(err, callback)) return;
-                
-                this.storage.remove("pad2readonly:" + padID);
-                this.storage.remove("readonly2pad:" + readonlyID);
-                
-                callback();
-              });
-            },
-            //delete all chat messages
-            function(callback)
-            {
               var chatHead = _this.chatHead;
               
               for(var i=0;i<=chatHead;i++)
