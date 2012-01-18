@@ -168,7 +168,7 @@ Class('Pad', {
             //get the atext of the key revision
             function (callback)
             {
-              this.storage.getSub("pad:"+_this.id+":revs:"+keyRev, ["meta", "atext"], function(err, _atext)
+              _this.storage.getSub("pad:"+_this.id+":revs:"+keyRev, ["meta", "atext"], function(err, _atext)
               {
                 if(ERR(err, callback)) return;
                 atext = Changeset.cloneAText(_atext);
@@ -254,7 +254,7 @@ Class('Pad', {
         //get the chat entry 
         function(callback)
         {
-          this.storage.get("pad:"+_this.id+":chat:"+entryNum, function(err, _entry)
+          _this.storage.get("pad:"+_this.id+":chat:"+entryNum, function(err, _entry)
           {
             if(ERR(err, callback)) return;
             entry = _entry;
@@ -440,7 +440,7 @@ Class('Pad', {
             {
               var groupID = padID.substring(0,padID.indexOf("$"));
 
-              this.storage.get("group:" + groupID, function (err, group)
+              _this.storage.get("group:" + groupID, function (err, group)
                 {
                   if(ERR(err, callback)) return;
 
@@ -448,7 +448,7 @@ Class('Pad', {
                   delete group.pads[padID];
 
                   //set the new value
-                  this.storage.set("group:" + groupID, group);
+                  _this.storage.set("group:" + groupID, group);
 
                   callback();
                 });
@@ -466,8 +466,8 @@ Class('Pad', {
                     {
                       if(ERR(err, callback)) return;
 
-                      this.storage.remove("pad2readonly:" + padID);
-                      this.storage.remove("readonly2pad:" + readonlyID);
+                      _this.storage.remove("pad2readonly:" + padID);
+                      _this.storage.remove("readonly2pad:" + readonlyID);
 
                       callback();
                     });
@@ -479,7 +479,7 @@ Class('Pad', {
               
               for(var i=0;i<=chatHead;i++)
               {
-                this.storage.remove("pad:"+padID+":chat:"+i);
+                _this.storage.remove("pad:"+padID+":chat:"+i);
               }
               
               callback();
@@ -491,7 +491,7 @@ Class('Pad', {
               
               for(var i=0;i<=revHead;i++)
               {
-                this.storage.remove("pad:"+padID+":revs:"+i);
+                _this.storage.remove("pad:"+padID+":revs:"+i);
               }
               
               callback();
@@ -501,7 +501,7 @@ Class('Pad', {
         //delete the pad entry and delete pad from padManager
         function(callback)
         {
-          this.storage.remove("pad:"+padID);
+          _this.storage.remove("pad:"+padID);
           padManager.unloadPad(padID);
           callback();
         }
