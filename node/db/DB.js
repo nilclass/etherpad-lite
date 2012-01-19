@@ -19,7 +19,7 @@
  * limitations under the License.
  */
 
-var ueberDB = require("ueberDB");
+var ueberDB = require("ueberDB-couch");
 var settings = require("../utils/Settings");
 var log4js = require('log4js');
 
