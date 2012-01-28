@@ -20,6 +20,7 @@
  * limitations under the License.
  */
 
+var paddocbar = require('/pad_docbar').paddocbar;
 
 var padimpexp = (function()
 {
@@ -233,14 +234,26 @@ var padimpexp = (function()
   }
 
   /////
+  var pad = undefined;
   var self = {
     init: function()
     {
+      try {
+      pad = require('/pad2').pad; // Sidestep circular dependency (should be injected).
+      } catch (e) {
+        // skip (doesn't require pad when required by timeslider)
+      }
+
+      //get /p/padname
+      var pad_root_path = new RegExp(/.*\/p\/[^\/]+/).exec(document.location.pathname)
+      //get http://example.com/p/padname
+      var pad_root_url = document.location.href.replace(document.location.pathname, pad_root_path)
+
       // build the export links
-      $("#exporthtmla").attr("href", document.location.pathname + "/export/html");
-      $("#exportplaina").attr("href", document.location.pathname + "/export/txt");
-      $("#exportwordlea").attr("href", document.location.pathname + "/export/wordle");
-      $("#exportdokuwikia").attr("href", document.location.pathname + "/export/dokuwiki");
+      $("#exporthtmla").attr("href", pad_root_path + "/export/html");
+      $("#exportplaina").attr("href", pad_root_path + "/export/txt");
+      $("#exportwordlea").attr("href", pad_root_path + "/export/wordle");
+      $("#exportdokuwikia").attr("href", pad_root_path + "/export/dokuwiki");
       
       //hide stuff thats not avaible if abiword is disabled
       if(clientVars.abiwordAvailable == "no")
@@ -250,27 +263,27 @@ var padimpexp = (function()
         $("#exportopena").remove();
         $("#importexport").css({"height":"115px"});
         $("#importexportline").css({"height":"115px"});
-        $("#import").html("Import is not available");
+        $("#import").html("Import is not available.  To enable import please install abiword");
       }
       else if(clientVars.abiwordAvailable == "withoutPDF")
       {
         $("#exportpdfa").remove();
         
-        $("#exportworda").attr("href", document.location.pathname + "/export/doc");
-        $("#exportopena").attr("href", document.location.pathname + "/export/odt");
+        $("#exportworda").attr("href", pad_root_path + "/export/doc");
+        $("#exportopena").attr("href", pad_root_path + "/export/odt");
         
         $("#importexport").css({"height":"142px"});
         $("#importexportline").css({"height":"142px"});
         
-        $("#importform").get(0).setAttribute('action', document.location.href + "/import"); 
+        $("#importform").attr('action', pad_root_url + "/import"); 
       }
       else
       {
-        $("#exportworda").attr("href", document.location.pathname + "/export/doc");
-        $("#exportpdfa").attr("href", document.location.pathname + "/export/pdf");
-        $("#exportopena").attr("href", document.location.pathname + "/export/odt");
+        $("#exportworda").attr("href", pad_root_path + "/export/doc");
+        $("#exportpdfa").attr("href", pad_root_path + "/export/pdf");
+        $("#exportopena").attr("href", pad_root_path + "/export/odt");
         
-        $("#importform").get(0).setAttribute('action', document.location.pathname + "/import"); 
+        $("#importform").attr('action', pad_root_path + "/import"); 
       }
     
       $("#impexp-close").click(function()
@@ -308,7 +321,7 @@ var padimpexp = (function()
     },
     export2Wordle: function()
     {
-      var padUrl = document.location.href + "/export/txt";
+      var padUrl = $('#exportwordlea').attr('href').replace(/\/wordle$/, '/txt')
       
       $.get(padUrl, function(data) 
       {
@@ -320,3 +333,5 @@ var padimpexp = (function()
   };
   return self;
 }());
+
+exports.padimpexp = padimpexp;

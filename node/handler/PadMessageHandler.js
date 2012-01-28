@@ -29,7 +29,6 @@ var settings = require('../utils/Settings');
 var securityManager = require("../db/SecurityManager");
 var storageManager = require("../db/StorageManager");
 var log4js = require('log4js');
-var os = require("os");
 var messageLogger = log4js.getLogger("message");
 
 /**
@@ -804,13 +803,6 @@ function handleClientReady(client, message)
       var apool = attribsForWire.pool.toJsonable();
       atext.attribs = attribsForWire.translated;
       
-      //check if abiword is avaiable
-      var abiwordAvailable = settings.abiword != null ? "yes" : "no";
-      if(settings.abiword != null && os.type().indexOf("Windows") != -1)
-      {
-        abiwordAvailable = "withoutPDF";
-      }
-      
       var clientVars = {
         "accountPrivs": {
             "maxRevisions": 100
@@ -847,7 +839,7 @@ function handleClientReady(client, message)
             "fullWidth": false,
             "hideSidebar": false
         },
-        "abiwordAvailable": abiwordAvailable, 
+        "abiwordAvailable": settings.abiwordAvailable(), 
         "hooks": {}
       }
       

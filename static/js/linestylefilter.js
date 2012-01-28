@@ -27,6 +27,15 @@
 // requires: top
 // requires: plugins
 // requires: undefined
+
+var Changeset = require('/easysync2').Changeset
+var plugins = undefined;
+try {
+  plugins = require('/plugins').plugins;
+} catch (e) {
+  // silence
+}
+
 var linestylefilter = {};
 
 linestylefilter.ATTRIB_CLASSES = {
@@ -89,6 +98,10 @@ linestylefilter.getLineStyleFilter = function(lineLength, aline, textAndClassFun
             else if (key == 'list')
             {
               classes += ' list:' + value;
+            }
+            else if (key == 'start')
+            {
+              classes += ' start:' + value;
             }
             else if (linestylefilter.ATTRIB_CLASSES[key])
             {
@@ -348,3 +361,5 @@ linestylefilter.populateDomLine = function(textLine, aline, apool, domLineObj)
   func = linestylefilter.getLineStyleFilter(text.length, aline, func, apool);
   func(text, '');
 };
+
+exports.linestylefilter = linestylefilter;

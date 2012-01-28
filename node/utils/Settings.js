@@ -20,6 +20,7 @@
  */
 
 var fs = require("fs");
+var os = require("os");
 var path = require('path');
 
 /**
@@ -73,6 +74,19 @@ exports.loglevel = "INFO";
  * Http basic auth, with "user:password" format
  */
 exports.httpAuth = null;
+
+//checks if abiword is avaiable
+exports.abiwordAvailable = function()
+{
+  if(exports.abiword != null)
+  {
+    return os.type().indexOf("Windows") != -1 ? "withoutPDF" : "yes";
+  }
+  else
+  {
+    return "no";
+  }
+}
 
 //read the settings sync
 var settingsPath = path.normalize(__dirname + "/../../");

@@ -20,15 +20,23 @@
  * limitations under the License.
  */
 
+var padcookie = require('/pad_cookie').padcookie;
+var padutils = require('/pad_utils').padutils;
 
 var padeditor = (function()
 {
+  var Ace2Editor = undefined;
+  var pad = undefined;
+  var settings = undefined;
   var self = {
     ace: null,
     // this is accessed directly from other files
     viewZoom: 100,
     init: function(readyFunc, initialViewOptions)
     {
+      Ace2Editor = require('/ace').Ace2Editor;
+      pad = require('/pad2').pad; // Sidestep circular dependency (should be injected).
+      settings = require('/pad2').settings;
 
       function aceReady()
       {
@@ -68,7 +76,7 @@ var padeditor = (function()
         pad.changeViewOption('useMonospaceFont', $("#viewfontmenu").val() == 'monospace');
       });
 
-      noColors = !noColors; // Inversed so we can pass it to showauthorcolors
+      settings.noColors = !settings.noColors; // Inversed so we can pass it to showauthorcolors
     },
     setViewOptions: function(newOptions)
     {
@@ -79,6 +87,11 @@ var padeditor = (function()
         if (value == "false") return false;
         return defaultValue;
       }
+
+      self.ace.setProperty("showsauthorcolors", settings.noColors);
+
+      self.ace.setProperty("rtlIsTrue", settings.rtlIsTrue);
+
       var v;
 
       v = getOption('showLineNumbers', true);
@@ -92,10 +105,6 @@ var padeditor = (function()
       v = getOption('useMonospaceFont', false);
       self.ace.setProperty("textface", (v ? "monospace" : "Arial, sans-serif"));
       $("#viewfontmenu").val(v ? "monospace" : "normal");
-
-      self.ace.setProperty("showsauthorcolors", noColors);
-
-      self.ace.setProperty("rtlIsTrue", rtlIsTrue);
     },
     initViewZoom: function()
     {
@@ -150,3 +159,5 @@ var padeditor = (function()
   };
   return self;
 }());
+
+exports.padeditor = padeditor;

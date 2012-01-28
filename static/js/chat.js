@@ -20,19 +20,18 @@
  * limitations under the License.
  */
 
+var padutils = require('/pad_utils').padutils;
+var browser = require('/ace2_common').browser;
+
 var chat = (function()
 {
-  var ua = navigator.userAgent.toLowerCase();
-  var isAndroid = ua.indexOf("android") > -1;
-  var isMobileSafari = ua.indexOf("mobile") > -1;
-  var bottomMargin = "0px";
+  var isStuck = false;
   var sDuration = 500;
   var hDuration = 750;
   var chatMentions = 0;
   var title = document.title;
-  if (isAndroid || isMobileSafari){
-   sDuration = 0;
-   hDuration = 0;
+  if (browser.mobile){
+   sDuration = hDuration = 0;
   }
   var self = {
     show: function () 
@@ -57,17 +56,34 @@ var chat = (function()
           {
             $("#focusprotector").hide();
             
-            if(isAndroid || isMobileSafari)
-              bottommargin = "32px";
-            
-            $("#chatbox").css({right: "20px", bottom: bottomMargin, left: "", top: ""});
-            
+            if(browser.mobile) {
+              $("#chatbox").css({right: "0px", bottom: "32px", left: "", top: ""});
+            } else {
+              $("#chatbox").css({right: "20px", bottom: "0px", left: "", top: ""});
+            }
+
             self.scrollDown();
           }
         });
       });
       chatMentions = 0;
       document.title = title;
+    },
+    stickToScreen: function() // Make chat stick to right hand side of screen
+    {
+      console.log(isStuck);
+      chat.show();
+      if(!isStuck) { // Stick it to
+        $('#chatbox').css({"right":"0px", "top":"36px", "border-radius":"0px", "height":"auto", "border-right":"none", "border-left":"1px solid #ccc", "border-top":"none", "background-color":"#f1f1f1", "width":"185px"});
+        $('#chattext').css({"top":"0px"});
+        $('#editorcontainer').css({"right":"192px", "width":"auto"});
+        isStuck = true;
+      } else { // Unstick it
+        $('#chatbox').css({"right":"20px", "top":"auto", "border-top-left-radius":"5px", "border-top-right-radius":"5px", "border-right":"1px solid #999", "height":"200px", "border-top":"1px solid #999", "background-color":"#f7f7f7"});
+        $('#chattext').css({"top":"25px"});
+        $('#editorcontainer').css({"right":"0px", "width":"100%"});
+        isStuck = false;
+      }
     },
     hide: function () 
     {
@@ -85,13 +101,13 @@ var chat = (function()
     send: function()
     {
       var text = $("#chatinput").val();
-      pad.collabClient.sendMessage({"type": "CHAT_MESSAGE", "text": text});
+      this._pad.collabClient.sendMessage({"type": "CHAT_MESSAGE", "text": text});
       $("#chatinput").val("");
     },
     addMessage: function(msg, increment)
     {    
       //correct the time
-      msg.time += pad.clientTimeOffset; 
+      msg.time += this._pad.clientTimeOffset;
       
       //create the time string
       var minutes = "" + new Date(msg.time).getMinutes();
@@ -153,8 +169,9 @@ var chat = (function()
       self.scrollDown();
 
     },
-    init: function()
+    init: function(pad)
     {
+      this._pad = pad;
       $("#chatinput").keypress(function(evt)
       {
         //if the user typed enter, fire the send
@@ -175,3 +192,6 @@ var chat = (function()
 
   return self;
 }());
+
+exports.chat = chat;
+

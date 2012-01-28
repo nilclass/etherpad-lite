@@ -33,6 +33,13 @@ if [ ! $(echo $NPM_VERSION | cut -d "." -f 1) = "1" ]; then
   exit 1 
 fi
 
+#check node version
+NODE_VERSION=$(node --version)
+if [ ! $(echo $NODE_VERSION | cut -d "." -f 1-2) = "v0.6" ]; then
+  echo "You're running a wrong version of node, you're using $NODE_VERSION, we need v0.6.x" >&2
+  exit 1 
+fi
+
 #Does a settings.json exist? if no copy the template
 if [ ! -f "settings.json" ]; then
   echo "Copy the settings template to settings.json..."
@@ -48,8 +55,8 @@ npm install || {
 echo "Ensure jQuery is downloaded and up to date..."
 DOWNLOAD_JQUERY="true"
 NEEDED_VERSION="1.7"
-if [ -f "static/js/jquery.min.js" ]; then
-  VERSION=$(cat static/js/jquery.min.js | head -n 3 | grep -o "v[0-9].[0-9]");
+if [ -f "static/js/jquery.js" ]; then
+  VERSION=$(cat static/js/jquery.js | head -n 3 | grep -o "v[0-9].[0-9]");
   
   if [ ${VERSION#v} = $NEEDED_VERSION ]; then
     DOWNLOAD_JQUERY="false"
@@ -57,7 +64,7 @@ if [ -f "static/js/jquery.min.js" ]; then
 fi
 
 if [ $DOWNLOAD_JQUERY = "true" ]; then
-  curl -lo static/js/jquery.min.js http://code.jquery.com/jquery-$NEEDED_VERSION.min.js || exit 1
+  curl -lo static/js/jquery.js http://code.jquery.com/jquery-$NEEDED_VERSION.js || exit 1
 fi
 
 #Remove all minified data to force node creating it new
