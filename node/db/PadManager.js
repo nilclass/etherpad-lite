@@ -111,11 +111,14 @@ exports.getPad = function(id, text, callback)
 //checks if a pad exists
 exports.doesPadExists = function(padId, callback)
 {
-  storage = storageManager.get(padId.split("$")[0], null);
-  storage.get("pad:"+padId, function(err, value)
+  storageManager.get(padId.split("$")[0], function(err,storage)
   {
     if(ERR(err, callback)) return;
-    callback(null, value != null);  
+    storage.get("pad:"+padId, function(err, value)
+    {
+      if(ERR(err, callback)) return;
+      callback(null, value != null);  
+    });
   });
 }
 
