@@ -3512,9 +3512,11 @@ function OUTER(gscope)
   function handleClick(evt)
   {
     //hide the dropdowns
-    if(window.top.padeditbar){ // required in case its in an iframe should probably use parent..  See Issue 327 https://github.com/Pita/etherpad-lite/issues/327
-      window.top.padeditbar.toogleDropDown("none");
-    }
+    // this does not work in an iframe. So to avoid the error messages
+    // we remove this for now.
+    //if(window.top.padeditbar){ 
+    //  window.top.padeditbar.toogleDropDown("none");
+    //}
   
     inCallStack("handleClick", function()
     {
