@@ -20,33 +20,24 @@
 
 
 var ERR = require("async-stacktrace");
+var url = require("url");
 var remote = require("./RemoteStorage");
-var db = require("./DB").db;
+var settings = require("../utils/Settings");
+var redis = require("redis");
 
-// store all remote connections we have
+// TODO: make this more flexible and wrap it nicely
+var client = redis.createClient(settings.redis.port, settings.redis.host);
+client.auth(settings.redis.pwd);
 
+// cache all remote connections we have
 var storages = {
   get: function (name) { return this[':'+name]; },
   set: function (name, value) { this[':'+name] = value; },
   remove: function (name) { delete this[':'+name]; }
 };
 
-exports.init = function(name, settings, callback)
-{
-  remote.init(name, settings, function(err, storage)
-  {
-    console.log("init " + name);
-    if(ERR(err, callback)) return;
-    storages.set(name, storage);
-    db.set("backend:"+name, settings);
-    console.debug("settings: "+require("util").inspect(settings));
-    callback(null, {storageStatus: "ready"});
-  });
-}
-
 exports.get = function(name, callback)
 {
-
   console.log("get " + name);
   var storage = storages.get(name);
   // not in cache
@@ -55,18 +46,44 @@ exports.get = function(name, callback)
     callback(null, storage);
     return;
   }
-
-  console.warn("loading "+name+" from db");
-  db.get("backend:"+name, function(err, settings)
-  {
+  exports.refresh(name, function(err, status){
     if(ERR(err, callback)) return;
-    console.debug("backend: "+require("util").inspect(settings));
-    remote.init(name, settings, function(err, _storage)
+    callback(null, storages.get(name));
+  });
+}
+
+exports.refresh = function(name, callback)
+{
+  var remote_name=unhyphenify(name);
+  console.warn("loading "+remote_name+" from db");
+  client.get(remote_name, function(err, record)
+  {
+    record = JSON.parse(record);
+    console.warn("got: "+require("util").inspect(record));
+    var params = {
+      storageAddress: record.storageAddress.replace(record.proxy, ''),
+      bearerToken: record.bearerToken,
+      storageApi: record.storageApi
+    }
+    if(ERR(err, callback)) return;
+    console.warn("backend: "+require("util").inspect(params));
+    remote.init(name, params, function(err, _storage)
     {
       console.log("init from settings " + name);
       if(ERR(err, callback)) return;
       storages.set(name, _storage);
-      callback(null, _storage);
+      callback(null, {storageStatus: 'ready'});
     });
   });
+}
+
+//TODO: we might need a lib for this kind of stuff somewhere
+var unhyphenify = function(string)
+{
+  var replacements = {dash: '-', dot: '.', at: '@'};
+  parts=string.split('-');
+  for(var i=1; i<parts.length; i+=2) {
+    parts[i]=replacements[parts[i]];
+  }
+  return parts.join('');
 }

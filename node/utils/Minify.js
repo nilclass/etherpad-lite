@@ -248,6 +248,7 @@ function _handle(req, res, jsFilename, jsFiles) {
     {
       if(err && err != "stop")
       {
+        console.warn(err);
         if(ERR(err)) return;
       }
       

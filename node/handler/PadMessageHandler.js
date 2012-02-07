@@ -644,20 +644,7 @@ function handleClientReady(client, message)
     //init storage
     function(callback)
     {
-      // If we don't get the address or the bearer token we assume this is
-      // for collaborating on an existing pad.
-      if(!message.storageAddress || !message.bearerToken)
-      {
-        messageLogger.warn(message.userName+" wants to collaborate on "+padId);
-        callback();
-        return;
-      }
-      storageSettings = {
-        'storageAddress' : message.storageAddress,
-        'storageApi'     : message.storageApi,
-        'bearerToken'    : message.bearerToken
-      };
-      storageManager.init(message.userName, storageSettings, function(err, statusObject)
+      storageManager.refresh(message.userName, function(err, statusObject)
       {
         if(ERR(err, callback)) return;
 

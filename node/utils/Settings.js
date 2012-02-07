@@ -41,6 +41,10 @@ exports.dbType = "dirty";
  */
 exports.dbSettings = { "filename" : "../var/dirty.db" };
 /**
+ * This setting is used for the remoteStorage list stored in redis
+ */
+exports.redis = { "host": "localhost" };
+/**
  * The default Text of a new pad
  */
 exports.defaultPadText = "Welcome to Etherpad Lite!\n\nThis pad text is synchronized as you type, so that everyone viewing this page sees the same text. This allows you to collaborate seamlessly on documents!\n\nEtherpad Lite on Github: http:\/\/j.mp/ep-lite\n";
