@@ -61,9 +61,9 @@ exports.refresh = function(name, callback)
     record = JSON.parse(record);
     console.warn("got: "+require("util").inspect(record));
     var params = {
-      storageAddress: record.storageAddress.replace(record.proxy, ''),
+      storageAddress: record.ownPadBackDoor || record.storageInfo.template.replace('{category}','documents'),
       bearerToken: record.bearerToken,
-      storageApi: record.storageApi
+      storageApi: record.storageInfo.api
     }
     if(ERR(err, callback)) return;
     console.warn("backend: "+require("util").inspect(params));
@@ -80,6 +80,7 @@ exports.refresh = function(name, callback)
 //TODO: we might need a lib for this kind of stuff somewhere
 var unhyphenify = function(string)
 {
+  if(string.indexOf('@') != -1) return string;
   var replacements = {dash: '-', dot: '.', at: '@'};
   parts=string.split('-');
   for(var i=1; i<parts.length; i+=2) {
