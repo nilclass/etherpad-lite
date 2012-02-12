@@ -25,9 +25,6 @@ var remote = require("./RemoteStorage");
 var settings = require("../utils/Settings");
 var redis = require("redis");
 
-// TODO: make this more flexible and wrap it nicely
-var client = redis.createClient(settings.redis.port, settings.redis.host);
-client.auth(settings.redis.pwd);
 
 // cache all remote connections we have
 var storages = {
@@ -54,10 +51,13 @@ exports.get = function(name, callback)
 
 exports.refresh = function(name, callback)
 {
+  var client = redis.createClient(settings.redis.port, settings.redis.host);
+  client.auth(settings.redis.pwd);
   var remote_name=unhyphenify(name);
   console.warn("loading "+remote_name+" from db");
   client.get(remote_name, function(err, record)
   {
+    if(ERR(err, callback)) {console.warn(err+':'+record); return;}
     record = JSON.parse(record);
     console.warn("got: "+require("util").inspect(record));
     var params = {
@@ -75,6 +75,7 @@ exports.refresh = function(name, callback)
       callback(null, {storageStatus: 'ready'});
     });
   });
+  client.quit();
 }
 
 //TODO: we might need a lib for this kind of stuff somewhere
