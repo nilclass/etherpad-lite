@@ -375,6 +375,12 @@ Class('Pad', {
             {
               if(ERR(err, callback)) return;
 
+              // we initialized a pad with only text...
+              if(value != null && !value.atext && value.text){
+                text = value.text;
+                value = null;
+              }
+
               //if this pad exists, load it
               if(value != null)
           {
