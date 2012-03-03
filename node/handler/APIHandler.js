@@ -18,10 +18,12 @@
  * limitations under the License.
  */
 
+var CommonCode = require('../utils/common_code');
 var ERR = require("async-stacktrace");
 var fs = require("fs");
 var api = require("../db/API");
 var padManager = require("../db/PadManager");
+var randomString = CommonCode.require('/pad_utils').randomString;
 
 //ensure we have an apikey
 var apikey = null;
@@ -156,19 +158,4 @@ function callAPI(functionName, fields, req, res)
   
   //call the api function
   api[functionName](functionParams[0],functionParams[1],functionParams[2],functionParams[3],functionParams[4]);
-}
-
-/**
- * Generates a random String with the given length. Is needed to generate the Author Ids
- */
-function randomString(len) 
-{
-  var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  var randomstring = '';
-  for (var i = 0; i < len; i++)
-  {
-    var rnum = Math.floor(Math.random() * chars.length);
-    randomstring += chars.substring(rnum, rnum + 1);
-  }
-  return randomstring;
 }
