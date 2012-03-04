@@ -195,15 +195,15 @@ function savePassword()
   document.location=document.location;
 }
 
-function handshake()
+function handshake(url, resource, padId)
 {
   var loc = document.location;
   //get the correct port
   var port = loc.port == "" ? (loc.protocol == "https:" ? 443 : 80) : loc.port;
   //create the url
-  var url = loc.protocol + "//" + loc.hostname + ":" + port + "/";
+  url = url || loc.protocol + "//" + loc.hostname + ":" + port + "/";
   //find out in which subfolder we are
-  var resource = loc.pathname.substr(1, loc.pathname.indexOf("/p/")) + "socket.io";
+  resource = resource || loc.pathname.substr(1, loc.pathname.indexOf("/p/")) + "socket.io";
   //connect
   socket = pad.socket = io.connect(url, {
     resource: resource,
@@ -212,7 +212,7 @@ function handshake()
 
   function sendClientReady(isReconnect)
   {
-    var padId = document.location.pathname.substring(document.location.pathname.lastIndexOf("/") + 1);
+    padId = padId || document.location.pathname.substring(document.location.pathname.lastIndexOf("/") + 1);
     padId = decodeURIComponent(padId); // unescape neccesary due to Safari and Opera interpretation of spaces
 
     if(!isReconnect)
