@@ -20,11 +20,6 @@
  * limitations under the License.
  */
 
-$(window).bind("load", function()
-{
-  getCollabClient.windowLoaded = true;
-});
-
 var chat = require('/chat').chat;
 
 // Dependency fill on init. This exists for `pad.socket` only.
@@ -89,13 +84,6 @@ function getCollabClient(ace2editor, serverVars, initialUserInfo, options, _pad)
     {}
   };
 
-  $(window).bind("unload", function()
-  {
-    if (getSocket())
-    {
-      setChannelState("DISCONNECTED", "unload");
-    }
-  });
   if ($.browser.mozilla)
   {
     // Prevent "escape" from taking effect and canceling a comet connection;
@@ -267,19 +255,6 @@ function getCollabClient(ace2editor, serverVars, initialUserInfo, options, _pad)
       abandonConnection("initsocketfail");
     }*/
   }
-
-  function setUpSocketWhenWindowLoaded()
-  {
-    if (getCollabClient.windowLoaded)
-    {
-      setUpSocket();
-    }
-    else
-    {
-      setTimeout(setUpSocketWhenWindowLoaded, 200);
-    }
-  }
-  setTimeout(setUpSocketWhenWindowLoaded, 0);
 
   var hiccupCount = 0;
 
@@ -654,8 +629,7 @@ function getCollabClient(ace2editor, serverVars, initialUserInfo, options, _pad)
     }, 0);
   }
 
-  var self;
-  return (self = {
+  var self = {
     setOnUserJoin: function(cb)
     {
       callbacks.onUserJoin = cb;
@@ -698,7 +672,10 @@ function getCollabClient(ace2editor, serverVars, initialUserInfo, options, _pad)
     callWhenNotCommitting: callWhenNotCommitting,
     addHistoricalAuthors: tellAceAboutHistoricalAuthors,
     setChannelState: setChannelState
-  });
+  };
+
+  $(document).ready(setUpSocket);
+  return self;
 }
 
 function selectElementContents(elem)

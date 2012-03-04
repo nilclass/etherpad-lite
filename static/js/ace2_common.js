@@ -20,6 +20,7 @@
  * limitations under the License.
  */
 
+var Security = require('/security');
 
 function isNodeText(node)
 {
@@ -137,15 +138,11 @@ function binarySearchInfinite(expectedLength, func)
 
 function htmlPrettyEscape(str)
 {
-  return str.replace(/[&"<>]/g, function (c) {
-    return {
-      '&': '&amp;',
-      '"': '&quot;',
-      '<': '&lt;',
-      '>': '&gt;'
-    }[c] || c;
-  }).replace(/\r?\n/g, '\\n');
+  return Security.escapeHTML(str).replace(/\r?\n/g, '\\n');
 }
+
+var noop = function(){};
+var identity = function(x){return x};
 
 exports.isNodeText = isNodeText;
 exports.object = object;
@@ -161,3 +158,5 @@ exports.binarySearch = binarySearch;
 exports.binarySearchInfinite = binarySearchInfinite;
 exports.htmlPrettyEscape = htmlPrettyEscape;
 exports.map = map;
+exports.noop = noop;
+exports.identity = identity;

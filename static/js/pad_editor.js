@@ -32,11 +32,11 @@ var padeditor = (function()
     ace: null,
     // this is accessed directly from other files
     viewZoom: 100,
-    init: function(readyFunc, initialViewOptions)
+    init: function(readyFunc, initialViewOptions, _pad)
     {
       Ace2Editor = require('/ace').Ace2Editor;
-      pad = require('/pad2').pad; // Sidestep circular dependency (should be injected).
-      settings = require('/pad2').settings;
+      pad = _pad;
+      settings = pad.settings;
 
       function aceReady()
       {
@@ -69,14 +69,13 @@ var padeditor = (function()
       });
       padutils.bindCheckboxChange($("#options-colorscheck"), function()
       {
+        padcookie.setPref('showAuthorshipColors', padutils.getCheckbox("#options-colorscheck"));
         pad.changeViewOption('showAuthorColors', padutils.getCheckbox("#options-colorscheck"));
       });
       $("#viewfontmenu").change(function()
       {
         pad.changeViewOption('useMonospaceFont', $("#viewfontmenu").val() == 'monospace');
       });
-
-      settings.noColors = !settings.noColors; // Inversed so we can pass it to showauthorcolors
     },
     setViewOptions: function(newOptions)
     {
@@ -88,7 +87,7 @@ var padeditor = (function()
         return defaultValue;
       }
 
-      self.ace.setProperty("showsauthorcolors", settings.noColors);
+      self.ace.setProperty("showsauthorcolors", !settings.noColors);
 
       self.ace.setProperty("rtlIsTrue", settings.rtlIsTrue);
 
@@ -141,6 +140,7 @@ var padeditor = (function()
       if (self.ace)
       {
         self.ace.destroy();
+        self.ace = null;
       }
     },
     disable: function()

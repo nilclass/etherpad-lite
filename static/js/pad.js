@@ -24,13 +24,14 @@
 
 var socket;
 
-var settings = {};
-settings.LineNumbersDisabled = false;
-settings.noColors = false;
-settings.useMonospaceFontGlobal = false;
-settings.globalUserName = false;
-settings.hideQRCode = false;
-settings.rtlIsTrue = false;
+// These jQuery things should create local references, but for now `require()`
+// assigns to the global `$` and augments it with plugins.
+require('/jquery');
+require('/farbtastic');
+require('/excanvas');
+JSON = require('/json2');
+require('/undo-xpopup');
+require('/prefixfree');
 
 var chat = require('/chat').chat;
 var getCollabClient = require('/collab_client').getCollabClient;
@@ -45,60 +46,9 @@ var padsavedrevs = require('/pad_savedrevs').padsavedrevs;
 var paduserlist = require('/pad_userlist').paduserlist;
 var padutils = require('/pad_utils').padutils;
 
-$(document).ready(function()
-{
-  //start the costum js
-  if(typeof costumStart == "function") costumStart();
-  getParams();
-  handshake();
-});
-
-$(window).unload(function()
-{
-  pad.dispose();
-});
-
-function createCookie(name, value, days, path)
-{
-  if (days)
-  {
-    var date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    var expires = "; expires=" + date.toGMTString();
-  }
-  else var expires = "";
-  
-  if(!path)
-    path = "/";
-  
-  document.cookie = name + "=" + value + expires + "; path=" + path;
-}
-
-function readCookie(name)
-{
-  var nameEQ = name + "=";
-  var ca = document.cookie.split(';');
-  for (var i = 0; i < ca.length; i++)
-  {
-    var c = ca[i];
-    while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-  }
-  return null;
-}
-
-function randomString()
-{
-  var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  var string_length = 20;
-  var randomstring = '';
-  for (var i = 0; i < string_length; i++)
-  {
-    var rnum = Math.floor(Math.random() * chars.length);
-    randomstring += chars.substring(rnum, rnum + 1);
-  }
-  return "t." + randomstring;
-}
+var createCookie = require('/pad_utils').createCookie;
+var readCookie = require('/pad_utils').readCookie;
+var randomString = require('/pad_utils').randomString;
 
 function getParams()
 {
@@ -111,6 +61,7 @@ function getParams()
   var IsnoColors = params["noColors"];
   var hideQRCode = params["hideQRCode"];
   var rtl = params["rtl"];
+  var alwaysShowChat = params["alwaysShowChat"];
 
   if(params["storageAddress"])
   {
@@ -159,7 +110,7 @@ function getParams()
   if(userName)
   {
     // If the username is set as a parameter we should set a global value that we can call once we have initiated the pad.
-    settings.globalUserName = unescape(userName);
+    settings.globalUserName = decodeURIComponent(userName);
   }
   if(hideQRCode)
   {
@@ -170,6 +121,13 @@ function getParams()
     if(rtl == "true")
     {
       settings.rtlIsTrue = true
+    }
+  }
+  if(alwaysShowChat)
+  {
+    if(alwaysShowChat == "true")
+    {
+      chat.stickToScreen();
     }
   }
 }
@@ -195,6 +153,12 @@ function savePassword()
   document.location=document.location;
 }
 
+function ieTestXMLHTTP(){
+  // Test for IE known XML HTTP issue
+  if ($.browser.msie && !window.XMLHttpRequest){
+    $("#editorloadingbox").html("You do not have XML HTTP enabled in your browser. <a target='_blank' href='https://github.com/Pita/etherpad-lite/wiki/How-to-enable-native-XMLHTTP-support-in-IE'>Fix this issue</a>");
+  }
+}
 function handshake(url, resource, padId)
 {
   var loc = document.location;
@@ -207,7 +171,8 @@ function handshake(url, resource, padId)
   //connect
   socket = pad.socket = io.connect(url, {
     resource: resource,
-    'max reconnection attempts': 3
+    'max reconnection attempts': 3,
+    'sync disconnect on unload' : false
   });
 
   function sendClientReady(isReconnect)
@@ -216,12 +181,12 @@ function handshake(url, resource, padId)
     padId = decodeURIComponent(padId); // unescape neccesary due to Safari and Opera interpretation of spaces
 
     if(!isReconnect)
-      document.title = document.title + " | " + padId.replace(/_+/g, ' ');
+      document.title = padId.replace(/_+/g, ' ') + " | " + document.title;
 
     var token = readCookie("token");
     if (token == null)
     {
-      token = randomString();
+      token = "t." + randomString();
       createCookie("token", token, 60);
     }
     
@@ -269,15 +234,19 @@ function handshake(url, resource, padId)
     sendClientReady(true);
   });
   
-  socket.on('disconnect', function () {
-    function disconnectEvent()
-    {
-      pad.collabClient.setChannelState("DISCONNECTED", "reconnect_timeout");
+  socket.on('disconnect', function (reason) {
+    if(reason == "booted"){
+      pad.collabClient.setChannelState("DISCONNECTED");
+    } else {
+      function disconnectEvent()
+      {
+        pad.collabClient.setChannelState("DISCONNECTED", "reconnect_timeout");
+      }
+      
+      pad.collabClient.setChannelState("RECONNECTING");
+      
+      disconnectTimeout = setTimeout(disconnectEvent, 10000);
     }
-    
-    pad.collabClient.setChannelState("RECONNECTING");
-    
-    disconnectTimeout = setTimeout(disconnectEvent, 10000);
   });
 
   var receivedClientVars = false;
@@ -320,7 +289,7 @@ function handshake(url, resource, padId)
       clientVars.collab_client_vars.clientAgent = "Anonymous";
 
       //initalize the pad
-      pad.init();
+      pad._afterHandshake();
       initalized = true;
 
       // If the LineNumbersDisabled value is set to true then we need to hide the Line Numbers
@@ -329,7 +298,7 @@ function handshake(url, resource, padId)
         pad.changeViewOption('showLineNumbers', false);
       }
 
-      // If the noColors value is set to true then we need to hide the backround colors on the ace spans
+      // If the noColors value is set to true then we need to hide the background colors on the ace spans
       if (settings.noColors == true)
       {
         pad.changeViewOption('noColors', true);
@@ -369,7 +338,6 @@ function handshake(url, resource, padId)
       }
     }
   });
-
   // Bind the colorpicker
   var fb = $('#colorpicker').farbtastic({ callback: '#mycolorpickerpreview', width: 220});
 }
@@ -418,7 +386,6 @@ var pad = {
   {
     return clientVars.userIsGuest;
   },
-  //
   getUserId: function()
   {
     return pad.myUserInfo.userId;
@@ -433,6 +400,20 @@ var pad = {
   },
 
   init: function()
+  {
+    padutils.setupGlobalExceptionHandler();
+
+    $(document).ready(function()
+    {
+      // test for XML HTTP capabiites
+      ieTestXMLHTTP();
+      // start the custom js
+      if (typeof customStart == "function") customStart();
+      getParams();
+      handshake();
+    });
+  },
+  _afterHandshake: function()
   {
     pad.clientTimeOffset = new Date().getTime() - clientVars.serverTimestamp;
   
@@ -458,14 +439,10 @@ var pad = {
     }
 
     // order of inits is important here:
-    padcookie.init(clientVars.cookiePrefsToSet);
-  
+    padcookie.init(clientVars.cookiePrefsToSet, this);
+      
     $("#widthprefcheck").click(pad.toggleWidthPref);
-    $("#sidebarcheck").click(pad.toggleSidebar);
-    $("#settingswarning").click(function(){
-      $("#settingswarning").hide();
-      $("#settingseveryoneitems").show();
-    });
+    // $("#sidebarcheck").click(pad.togglewSidebar);
 
     pad.myUserInfo = {
       userId: clientVars.userId,
@@ -489,16 +466,16 @@ var pad = {
       initialTitle: clientVars.initialTitle,
       initialPassword: clientVars.initialPassword,
       guestPolicy: pad.padOptions.guestPolicy
-    });
-    padimpexp.init();
-    padsavedrevs.init(clientVars.initialRevisionList);
+    }, this);
+    padimpexp.init(this);
+    padsavedrevs.init(clientVars.initialRevisionList, this);
 
-    padeditor.init(postAceInit, pad.padOptions.view || {});
+    padeditor.init(postAceInit, pad.padOptions.view || {}, this);
 
-    paduserlist.init(pad.myUserInfo);
+    paduserlist.init(pad.myUserInfo, this);
     //    padchat.init(clientVars.chatHistory, pad.myUserInfo);
     padconnectionstatus.init();
-    padmodals.init();
+    padmodals.init(this);
 
     pad.collabClient = getCollabClient(padeditor.ace, clientVars.collab_client_vars, pad.myUserInfo, {
       colorPalette: pad.getColorPalette()
@@ -518,6 +495,13 @@ var pad = {
       {
         padeditor.ace.focus();
       }, 0);
+      if(padcookie.getPref("chatAlwaysVisible")){ // if we have a cookie for always showing chat then show it
+        chat.stickToScreen(true); // stick it to the screen
+        $('#options-stickychat').prop("checked", true); // set the checkbox to on
+      }
+      if(padcookie.getPref("showAuthorshipColors") == false){
+	pad.changeViewOption('showAuthorColors', false);
+      }
     }
   },
   dispose: function()
@@ -573,16 +557,6 @@ var pad = {
     };
     options.view[key] = value;
     pad.handleOptionsChange(options);
-    // if the request isn't to hide line numbers then broadcast this to other users
-    if (key != "showLineNumbers" && key != "useMonospaceFont")
-    {
-      pad.collabClient.sendClientMessage(
-      {
-        type: 'padoptions',
-        options: options,
-        changedBy: pad.myUserInfo.name || "unnamed"
-      });
-    }
   },
   handleOptionsChange: function(opts)
   {
@@ -790,15 +764,18 @@ var pad = {
 
     padsavedrevs.handleIsFullyConnected(isConnected);
 
-    pad.determineSidebarVisibility(isConnected && !isInitialConnect);
+    // pad.determineSidebarVisibility(isConnected && !isInitialConnect);
+    pad.determineChatVisibility(isConnected && !isInitialConnect);
+    pad.determineAuthorshipColorsVisibility();
+
   },
-  determineSidebarVisibility: function(asNowConnectedFeedback)
+/*  determineSidebarVisibility: function(asNowConnectedFeedback)
   {
     if (pad.isFullyConnected())
     {
       var setSidebarVisibility = padutils.getCancellableAction("set-sidebar-visibility", function()
       {
-        $("body").toggleClass('hidesidebar', !! padcookie.getPref('hideSidebar'));
+        // $("body").toggleClass('hidesidebar', !! padcookie.getPref('hideSidebar'));
       });
       window.setTimeout(setSidebarVisibility, asNowConnectedFeedback ? 3000 : 0);
     }
@@ -806,6 +783,27 @@ var pad = {
     {
       padutils.cancelActions("set-sidebar-visibility");
       $("body").removeClass('hidesidebar');
+    }
+  },
+*/
+  determineChatVisibility: function(asNowConnectedFeedback){
+    var chatVisCookie = padcookie.getPref('chatAlwaysVisible');
+    if(chatVisCookie){ // if the cookie is set for chat always visible
+      chat.stickToScreen(true); // stick it to the screen
+      $('#options-stickychat').prop("checked", true); // set the checkbox to on
+    }
+    else{
+      $('#options-stickychat').prop("checked", false); // set the checkbox for off
+    }
+  },
+  determineAuthorshipColorsVisibility: function(){
+    var authColCookie = padcookie.getPref('showAuthorshipColors');
+    if (authColCookie){
+      pad.changeViewOption('showAuthorColors', true);
+      $('#options-colorscheck').prop("checked", true);
+    }
+    else {
+      $('#options-colorscheck').prop("checked", false);
     }
   },
   handleCollabAction: function(action)
@@ -856,6 +854,7 @@ var pad = {
     $("#widthprefcheck").toggleClass('widthprefchecked', !! newValue).toggleClass('widthprefunchecked', !newValue);
     pad.handleWidthChange();
   },
+/*
   toggleSidebar: function()
   {
     var newValue = !padcookie.getPref('hideSidebar');
@@ -863,6 +862,7 @@ var pad = {
     $("#sidebarcheck").toggleClass('sidebarchecked', !newValue).toggleClass('sidebarunchecked', !! newValue);
     pad.determineSidebarVisibility();
   },
+*/
   handleWidthChange: function()
   {
     var isFullWidth = padcookie.getPref('fullWidth');
@@ -982,6 +982,21 @@ var alertBar = (function()
   return self;
 }());
 
+function init() {
+  return pad.init();
+}
+
+var settings = {
+  LineNumbersDisabled: false
+, noColors: false
+, useMonospaceFontGlobal: false
+, globalUserName: false
+, hideQRCode: false
+, rtlIsTrue: false
+};
+
+pad.settings = settings;
+
 exports.settings = settings;
 exports.createCookie = createCookie;
 exports.readCookie = readCookie;
@@ -991,4 +1006,6 @@ exports.getUrlVars = getUrlVars;
 exports.savePassword = savePassword;
 exports.handshake = handshake;
 exports.pad = pad;
+exports.init = init;
 exports.alertBar = alertBar;
+

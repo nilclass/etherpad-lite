@@ -24,6 +24,15 @@ var padutils = require('/pad_utils').padutils;
 var padeditor = require('/pad_editor').padeditor;
 var padsavedrevs = require('/pad_savedrevs').padsavedrevs;
 
+function indexOf(array, value) {
+  for (var i = 0, ii = array.length; i < ii; i++) {
+    if (array[i] == value) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 var padeditbar = (function()
 {
 
@@ -168,11 +177,12 @@ var padeditbar = (function()
     },
     toogleDropDown: function(moduleName)
     {
-      var modules = ["embed", "users", "readonly", "importexport", "settingsmenu"];
+      var modules = ["settingsmenu", "importexport", "embed", "users"];
       
       //hide all modules
       if(moduleName == "none")
       {
+        $("#editbar ul#menu_right > li").removeClass("selected");
         for(var i=0;i<modules.length;i++)
         {
           //skip the userlist
@@ -189,6 +199,11 @@ var padeditbar = (function()
       }
       else 
       {
+        var nth_child = indexOf(modules, moduleName) + 1;
+      	if (nth_child > 0 && nth_child <= 3) {
+          $("#editbar ul#menu_right li:not(:nth-child(" + nth_child + "))").removeClass("selected");
+          $("#editbar ul#menu_right li:nth-child(" + nth_child + ")").toggleClass("selected");
+      	}
         //hide all modules that are not selected and show the selected one
         for(var i=0;i<modules.length;i++)
         {
@@ -224,14 +239,14 @@ var padeditbar = (function()
         var readonlyLink = basePath + "/ro/" + clientVars.readOnlyId;
         $('#embedinput').val("<iframe src='" + readonlyLink + "?showControls=true&showChat=true&showLineNumbers=true&useMonospaceFont=false' width=600 height=400>");
         $('#linkinput').val(readonlyLink);
-        $('#embedreadonlyqr').attr("src","https://chart.googleapis.com/chart?chs=200x200&cht=qr&chld=H|0&chl=" + readonlyLink);
+        $('#embedreadonlyqr').attr("src","https://chart.googleapis.com/chart?chs=200x200&cht=qr&chld=|0&chl=" + readonlyLink);
       }
       else
       {
         var padurl = window.location.href.split("?")[0];
         $('#embedinput').val("<iframe src='" + padurl + "?showControls=true&showChat=true&showLineNumbers=true&useMonospaceFont=false' width=600 height=400>");
         $('#linkinput').val(padurl);
-        $('#embedreadonlyqr').attr("src","https://chart.googleapis.com/chart?chs=200x200&cht=qr&chld=H|0&chl=" + padurl);
+        $('#embedreadonlyqr').attr("src","https://chart.googleapis.com/chart?chs=200x200&cht=qr&chld=|0&chl=" + padurl);
       }
     }
   };

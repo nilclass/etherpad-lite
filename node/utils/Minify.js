@@ -27,304 +27,258 @@ var cleanCSS = require('clean-css');
 var jsp = require("uglify-js").parser;
 var pro = require("uglify-js").uglify;
 var path = require('path');
-var Buffer = require('buffer').Buffer;
-var zlib = require('zlib');
 var RequireKernel = require('require-kernel');
 var server = require('../server');
-var os = require('os');
 
-var ROOT_DIR = path.normalize(__dirname + "/../" );
-var JS_DIR = ROOT_DIR + '../static/js/';
-var CSS_DIR = ROOT_DIR + '../static/css/';
-var CACHE_DIR = ROOT_DIR + '../var/';
+var ROOT_DIR = path.normalize(__dirname + "/../../static/");
 var TAR_PATH = path.join(__dirname, 'tar.json');
 var tar = JSON.parse(fs.readFileSync(TAR_PATH, 'utf8'));
+
+// Rewrite tar to include modules with no extensions and proper rooted paths.
+exports.tar = {};
+for (var key in tar) {
+  exports.tar['/' + key] =
+    tar[key].map(function (p) {return '/' + p}).concat(
+      tar[key].map(function (p) {return '/' + p.replace(/\.js$/, '')})
+    );
+}
 
 /**
  * creates the minifed javascript for the given minified name
  * @param req the Express request
  * @param res the Express response
  */
-exports.minifyJS = function(req, res, next)
+exports.minify = function(req, res, next)
 {
-  var jsFilename = req.params['filename'];
-  
-  //choose the js files we need
-  var jsFiles = undefined;
-  if (Object.prototype.hasOwnProperty.call(tar, jsFilename)) {
-    jsFiles = tar[jsFilename];
-    _handle(req, res, jsFilename, jsFiles)
+  var filename = req.params['filename'];
+
+  // No relative paths, especially if they may go up the file hierarchy.
+  filename = path.normalize(path.join(ROOT_DIR, filename));
+  if (filename.indexOf(ROOT_DIR) == 0) {
+    filename = filename.slice(ROOT_DIR.length);
+    filename = filename.replace(/\\/g, '/'); // Windows (safe generally?)
   } else {
-    // Not in tar list, but try anyways, if it fails, pass to `next`.
-    jsFiles = [jsFilename];
-    fs.stat(JS_DIR + jsFilename, function (error, stats) {
-      if (error || !stats.isFile()) {
-        next();
+    res.writeHead(404, {});
+    res.end();
+    return; 
+  }
+
+  // What content type should this be?
+  // TODO: This should use a MIME module.
+  var contentType;
+  if (filename.match(/\.js$/)) {
+    contentType = "text/javascript";
+  } else if (filename.match(/\.css$/)) {
+    contentType = "text/css";
+  } else if (filename.match(/\.html$/)) {
+    contentType = "text/html";
+  } else if (filename.match(/\.txt$/)) {
+    contentType = "text/plain";
+  } else if (filename.match(/\.png$/)) {
+    contentType = "image/png";
+  } else if (filename.match(/\.gif$/)) {
+    contentType = "image/gif";
+  } else if (filename.match(/\.ico$/)) {
+    contentType = "image/x-icon";
+  } else {
+    contentType = "application/octet-stream";
+  }
+
+  statFile(filename, function (error, date, exists) {
+    if (date) {
+      date = new Date(date);
+      res.setHeader('last-modified', date.toUTCString());
+      res.setHeader('date', (new Date()).toUTCString());
+      if (server.maxAge) {
+        var expiresDate = new Date((new Date()).getTime()+server.maxAge*1000);
+        res.setHeader('expires', expiresDate.toUTCString());
+        res.setHeader('cache-control', 'max-age=' + server.maxAge);
+      }
+    }
+
+    if (error) {
+      res.writeHead(500, {});
+      res.end();
+    } else if (!exists) {
+      res.writeHead(404, {});
+      res.end();
+    } else if (new Date(req.headers['if-modified-since']) >= date) {
+      res.writeHead(304, {});
+      res.end();
+    } else {
+      if (req.method == 'HEAD') {
+        res.header("Content-Type", contentType);
+        res.writeHead(200, {});
+        res.end();
+      } else if (req.method == 'GET') {
+        getFileCompressed(filename, contentType, function (error, content) {
+          if(ERR(error)) return;
+          res.header("Content-Type", contentType);
+          res.writeHead(200, {});
+          res.write(content);
+          res.end();
+        });
       } else {
-        _handle(req, res, jsFilename, jsFiles);
+        res.writeHead(405, {'allow': 'HEAD, GET'});
+        res.end();
+      }
+    }
+  });
+}
+
+// find all includes in ace.js and embed them.
+function getAceFile(callback) {
+  fs.readFile(ROOT_DIR + 'js/ace.js', "utf8", function(err, data) {
+    if(ERR(err, callback)) return;
+
+    // Find all includes in ace.js and embed them
+    var founds = data.match(/\$\$INCLUDE_[a-zA-Z_]+\("[^"]*"\)/gi);
+    if (!settings.minify) {
+      founds = [];
+    }
+    // Always include the require kernel.
+    founds.push('$$INCLUDE_JS("../static/js/require-kernel.js")');
+
+    data += ';\n';
+    data += 'Ace2Editor.EMBEDED = Ace2Editor.EMBEDED || {};\n';
+
+    // Request the contents of the included file on the server-side and write
+    // them into the file.
+    async.forEach(founds, function (item, callback) {
+      var filename = item.match(/"([^"]*)"/)[1];
+      var request = require('request');
+
+      var baseURI = 'http://localhost:' + settings.port
+
+      request(baseURI + path.normalize(path.join('/static/', filename)), function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+          data += 'Ace2Editor.EMBEDED[' + JSON.stringify(filename) + '] = '
+              + JSON.stringify(body || '') + ';\n';
+        } else {
+          // Silence?
+        }
+        callback();
+      });
+    }, function(error) {
+      callback(error, data);
+    });
+  });
+}
+
+// Check for the existance of the file and get the last modification date.
+function statFile(filename, callback) {
+  if (filename == 'js/ace.js') {
+    // Sometimes static assets are inlined into this file, so we have to stat
+    // everything.
+    lastModifiedDateOfEverything(function (error, date) {
+      callback(error, date, !error);
+    });
+  } else if (filename == 'js/require-kernel.js') {
+    callback(null, requireLastModified(), true);
+  } else {
+    fs.stat(ROOT_DIR + filename, function (error, stats) {
+      if (error) {
+        if (error.code == "ENOENT") {
+          // Stat the directory instead.
+          fs.stat(path.dirname(ROOT_DIR + filename), function (error, stats) {
+            if (error) {
+              if (error.code == "ENOENT") {
+                callback(null, null, false);
+              } else {
+                callback(error);
+              }
+            } else {
+              callback(null, stats.mtime.getTime(), false);
+            }
+          });
+        } else {
+          callback(error);
+        }
+      } else {
+        callback(null, stats.mtime.getTime(), true);
       }
     });
   }
 }
-
-function _handle(req, res, jsFilename, jsFiles) {
-  res.header("Content-Type","text/javascript");
-  
-  //minifying is enabled
-  if(settings.minify)
+function lastModifiedDateOfEverything(callback) {
+  var folders2check = [ROOT_DIR + 'js/', ROOT_DIR + 'css/'];
+  var latestModification = 0;
+  //go trough this two folders
+  async.forEach(folders2check, function(path, callback)
   {
-    var fileValues = {};
-    var embeds = {};
-    var latestModification = 0;
-    
-    async.series([
-      //find out the highest modification date
-      function(callback)
-      {        
-        var folders2check = [CSS_DIR, JS_DIR];
-        
-        //go trough this two folders
-        async.forEach(folders2check, function(path, callback)
-        {
-          //read the files in the folder
-          fs.readdir(path, function(err, files)
-          {
-            if(ERR(err, callback)) return;
-            
-            //we wanna check the directory itself for changes too
-            files.push(".");
-            
-            //go trough all files in this folder
-            async.forEach(files, function(filename, callback) 
-            {
-              //get the stat data of this file
-              fs.stat(path + "/" + filename, function(err, stats)
-              {
-                if(ERR(err, callback)) return;
-              
-                //get the modification time
-                var modificationTime = stats.mtime.getTime();
-              
-                //compare the modification time to the highest found
-                if(modificationTime > latestModification)
-                {
-                  latestModification = modificationTime;
-                }
-                
-                callback();
-              });
-            }, callback);
-          });
-        }, callback);
-      },
-      function(callback)
-      {
-        //check the modification time of the minified js
-        fs.stat(CACHE_DIR + "/minified_" + jsFilename, function(err, stats)
-        {
-          if(err && err.code != "ENOENT")
-          {
-            ERR(err, callback);
-            return;
-          }
-        
-          //there is no minfied file or there new changes since this file was generated, so continue generating this file
-          if((err && err.code == "ENOENT") || stats.mtime.getTime() < latestModification)
-          {
-            callback();
-          }
-          //the minified file is still up to date, stop minifying
-          else
-          {
-            callback("stop");
-          }
-        });
-      }, 
-      //load all js files
-      function (callback)
-      {
-        async.forEach(jsFiles, function (item, callback)
-        {
-          fs.readFile(JS_DIR + item, "utf-8", function(err, data)
-          {            
-            if(ERR(err, callback)) return;
-            fileValues[item] = data;
-            callback();
-          });
-        }, callback);
-      },
-      //find all includes in ace.js and embed them 
-      function(callback)
-      {        
-        //if this is not the creation of pad.js, skip this part
-        if(jsFilename != "pad.js")
-        {
-          callback();
-          return;
-        }
-      
-        var founds = fileValues["ace.js"].match(/\$\$INCLUDE_[a-zA-Z_]+\([a-zA-Z0-9.\/_"-]+\)/gi);
-        
-        //go trough all includes
-        async.forEach(founds, function (item, callback)
-        {
-          var filename = item.match(/"[^"]*"/g)[0].substr(1);
-          filename = filename.substr(0,filename.length-1);
-        
-          var type = item.match(/INCLUDE_[A-Z]+/g)[0].substr("INCLUDE_".length);
-        
-          //read the included file
-          var shortFilename = filename.replace(/^..\/static\/js\//, '');
-          if (shortFilename == 'require-kernel.js') {
-            // the kernel isn’t actually on the file system.
-            handleEmbed(null, requireDefinition());
-          } else {
-            fs.readFile(ROOT_DIR + filename, "utf-8", handleEmbed);
-          }
-          function handleEmbed(err, data)
-          {         
-            if(ERR(err, callback)) return;
+    //read the files in the folder
+    fs.readdir(path, function(err, files)
+    {
+      if(ERR(err, callback)) return;
 
-            if(type == "JS")
-            {
-              if (shortFilename == 'require-kernel.js') {
-                embeds[filename] = compressJS([data]);
-              } else {
-                embeds[filename] = compressJS([isolateJS(data, shortFilename)]);
-              }
-            }
-            else
-            {
-              embeds[filename] = compressCSS([data]);
-            }
-            callback();
-          }
-        }, function(err)
+      //we wanna check the directory itself for changes too
+      files.push(".");
+
+      //go trough all files in this folder
+      async.forEach(files, function(filename, callback)
+      {
+        //get the stat data of this file
+        fs.stat(path + "/" + filename, function(err, stats)
         {
           if(ERR(err, callback)) return;
 
-          fileValues["ace.js"] += ';\n'
-          fileValues["ace.js"] +=
-              'Ace2Editor.EMBEDED = Ace2Editor.EMBED || {};\n'
-          for (var filename in embeds)
+          //get the modification time
+          var modificationTime = stats.mtime.getTime();
+
+          //compare the modification time to the highest found
+          if(modificationTime > latestModification)
           {
-            fileValues["ace.js"] +=
-                'Ace2Editor.EMBEDED[' + JSON.stringify(filename) + '] = '
-              + JSON.stringify(embeds[filename]) + ';\n';
+            latestModification = modificationTime;
           }
 
           callback();
         });
-      },
-      //put all together and write it into a file
-      function(callback)
-      {
-        //minify all javascript files to one
-        var values = [];
-        tarCode(jsFiles, fileValues, function (content) {values.push(content)});
-        var result = compressJS(values);
-        
-        async.parallel([
-          //write the results plain in a file
-          function(callback)
-          {
-            fs.writeFile(CACHE_DIR + "minified_" + jsFilename, result, "utf8", callback);
-          },
-          //write the results compressed in a file
-          function(callback)
-          {
-            zlib.gzip(result, function(err, compressedResult){
-              //weird gzip bug that returns 0 instead of null if everything is ok
-              err = err === 0 ? null : err;
-            
-              if(ERR(err, callback)) return;
-              
-              fs.writeFile(CACHE_DIR + "minified_" + jsFilename + ".gz", compressedResult, callback);
-            });
-          }
-        ],callback);
-      }
-    ], function(err)
-    {
-      if(err && err != "stop")
-      {
-        console.warn(err);
-        if(ERR(err)) return;
-      }
-      
-      //check if gzip is supported by this browser
-      var gzipSupport = req.header('Accept-Encoding', '').indexOf('gzip') != -1;
-      
-      var pathStr;
-      if(gzipSupport && os.type().indexOf("Windows") == -1)
-      {
-        pathStr = path.normalize(CACHE_DIR + "minified_" + jsFilename + ".gz");
-        res.header('Content-Encoding', 'gzip');
-      }
-      else
-      {
-        pathStr = path.normalize(CACHE_DIR + "minified_" + jsFilename );
-      }
-      
-      res.sendfile(pathStr, { maxAge: server.maxAge });
-    })
-  }
-  //minifying is disabled, so put the files together in one file
-  else
-  {
-    var fileValues = {};
-  
-    //read all js files
-    async.forEach(jsFiles, function (item, callback)
-    {
-      fs.readFile(JS_DIR + item, "utf-8", function(err, data)
-      {          
-        if(ERR(err, callback)) return;  
-        fileValues[item] = data;
-        callback();
-      });
-    }, 
-    //send all files together
-    function(err)
-    {
-      if(ERR(err)) return;
-      
-      tarCode(jsFiles, fileValues, function (content) {res.write(content)});
-      
-      res.end();
+      }, callback);
     });
-  }
+  }, function () {
+    callback(null, latestModification);
+  });
 }
 
-exports.requireDefinition = requireDefinition;
+// This should be provided by the module, but until then, just use startup
+// time.
+var _requireLastModified = new Date();
+function requireLastModified() {
+  return _requireLastModified.toUTCString();
+}
 function requireDefinition() {
   return 'var require = ' + RequireKernel.kernelSource + ';\n';
 }
 
-function tarCode(filesInOrder, files, write) {
-  for(var i = 0, ii = filesInOrder.length; i < filesInOrder.length; i++) {
-    var filename = filesInOrder[i];
-    write("\n\n\n/*** File: static/js/" + filename + " ***/\n\n\n");
-    write(isolateJS(files[filename], filename));
-  }
-
-  for(var i = 0, ii = filesInOrder.length; i < filesInOrder.length; i++) {
-    var filename = filesInOrder[i];
-    write('require(' + JSON.stringify('/' + filename.replace(/^\/+/, '')) + ');\n');
-  }
+function getFileCompressed(filename, contentType, callback) {
+  getFile(filename, function (error, content) {
+    if (error || !content) {
+      callback(error, content);
+    } else {
+      if (settings.minify) {
+        if (contentType == 'text/javascript') {
+          try {
+            content = compressJS([content]);
+          } catch (error) {
+            // silence
+          }
+        } else if (contentType == 'text/css') {
+          content = compressCSS([content]);
+        }
+      }
+      callback(null, content);
+    }
+  });
 }
 
-// Wrap the following code in a self executing function and assign exports to
-// global. This is a first step towards removing symbols from the global scope.
-// exports is global and require is a function that returns global.
-function isolateJS(code, filename) {
-  var srcPath = JSON.stringify('/' + filename);
-  var srcPathAbbv = JSON.stringify('/' + filename.replace(/\.js$/, ''));
-  return 'require.define({'
-    + srcPath + ': '
-      + 'function (require, exports, module) {' + code + '}'
-    + (srcPath != srcPathAbbv ? '\n,' + srcPathAbbv + ': null' : '')
-    + '});\n';
+function getFile(filename, callback) {
+  if (filename == 'js/ace.js') {
+    getAceFile(callback);
+  } else if (filename == 'js/require-kernel.js') {
+    callback(undefined, requireDefinition());
+  } else {
+    fs.readFile(ROOT_DIR + filename, callback);
+  }
 }
 
 function compressJS(values)

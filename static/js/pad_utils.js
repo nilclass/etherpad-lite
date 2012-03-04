@@ -20,21 +20,62 @@
  * limitations under the License.
  */
 
+var Security = require('/security');
+
+/**
+ * Generates a random String with the given length. Is needed to generate the Author, Group, readonly, session Ids
+ */
+
+function randomString(len)
+{
+  var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  var randomstring = '';
+  len = len || 20
+  for (var i = 0; i < len; i++)
+  {
+    var rnum = Math.floor(Math.random() * chars.length);
+    randomstring += chars.substring(rnum, rnum + 1);
+  }
+  return randomstring;
+}
+
+function createCookie(name, value, days, path)
+{
+  if (days)
+  {
+    var date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    var expires = "; expires=" + date.toGMTString();
+  }
+  else var expires = "";
+
+  if(!path)
+    path = "/";
+
+  document.cookie = name + "=" + value + expires + "; path=" + path;
+}
+
+function readCookie(name)
+{
+  var nameEQ = name + "=";
+  var ca = document.cookie.split(';');
+  for (var i = 0; i < ca.length; i++)
+  {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+}
+
 var padutils = {
   escapeHtml: function(x)
   {
-    return String(x).replace(/[&"<>]/g, function (c) {
-      return {
-        '&': '&amp;',
-        '"': '&quot;',
-        '<': '&lt;',
-        '>': '&gt;'
-      }[c] || c;
-    });
+    return Security.escapeHTML(String(x));
   },
   uniqueId: function()
   {
-    var pad = require('/pad2').pad; // Sidestep circular dependency
+    var pad = require('/pad').pad; // Sidestep circular dependency
     function encodeNum(n, width)
     {
       // returns string that is exactly 'width' chars, padding with zeros
@@ -159,7 +200,7 @@ var padutils = {
     {
       if (i > idx)
       {
-        pieces.push(padutils.escapeHtml(text.substring(idx, i)));
+        pieces.push(Security.escapeHTML(text.substring(idx, i)));
         idx = i;
       }
     }
@@ -170,7 +211,7 @@ var padutils = {
         var startIndex = urls[j][0];
         var href = urls[j][1];
         advanceTo(startIndex);
-        pieces.push('<a ', (target ? 'target="' + target + '" ' : ''), 'href="', padutils.escapeHtml(href), '">');
+        pieces.push('<a ', (target ? 'target="' + Security.escapeHTMLAttribute(target) + '" ' : ''), 'href="', Security.escapeHTMLAttribute(href), '">');
         advanceTo(startIndex + href.length);
         pieces.push('</a>');
       }
@@ -209,7 +250,7 @@ var padutils = {
   },
   timediff: function(d)
   {
-    var pad = require('/pad2').pad; // Sidestep circular dependency
+    var pad = require('/pad').pad; // Sidestep circular dependency
     function format(n, word)
     {
       n = Math.round(n);
@@ -459,18 +500,29 @@ var padutils = {
   }
 };
 
-//send javascript errors to the server
-window.onerror = function test (msg, url, linenumber)
-{
- var errObj = {errorInfo: JSON.stringify({msg: msg, url: url, linenumber: linenumber, userAgent: navigator.userAgent})};
- var loc = document.location;
- var url = loc.protocol + "//" + loc.hostname + ":" + loc.port + "/" + loc.pathname.substr(1, loc.pathname.indexOf("/p/")) + "jserror";
+var globalExceptionHandler = undefined;
+function setupGlobalExceptionHandler() {
+  //send javascript errors to the server
+  if (!globalExceptionHandler) {
+    globalExceptionHandler = function test (msg, url, linenumber)
+    {
+     var errObj = {errorInfo: JSON.stringify({msg: msg, url: url, linenumber: linenumber, userAgent: navigator.userAgent})};
+     var loc = document.location;
+     var url = loc.protocol + "//" + loc.hostname + ":" + loc.port + "/" + loc.pathname.substr(1, loc.pathname.indexOf("/p/")) + "jserror";
  
- $.post(url, errObj);
+     $.post(url, errObj);
  
- return false;
-};
+     return false;
+    };
+    window.onerror = globalExceptionHandler;
+  }
+}
+
+padutils.setupGlobalExceptionHandler = setupGlobalExceptionHandler;
 
 padutils.binarySearch = require('/ace2_common').binarySearch;
 
+exports.randomString = randomString;
+exports.createCookie = createCookie;
+exports.readCookie = readCookie;
 exports.padutils = padutils;

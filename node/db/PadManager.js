@@ -20,7 +20,7 @@
 
 var ERR = require("async-stacktrace");
 var customError = require("../utils/customError");
-require("../db/Pad");
+var Pad = require("../db/Pad").Pad;
 var storageManager = require("./StorageManager");
 
 /** 
@@ -43,7 +43,8 @@ var globalPads = {
  * time, and allow us to "play back" these changes so legacy padIds can be found.
  */
 var padIdTransforms = [
-  [/\s+/g, '_']
+  [/\s+/g, '_'],
+  [/:+/g, '_']
 ];
 
 /**

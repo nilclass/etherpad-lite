@@ -40,10 +40,18 @@ if [ ! $(echo $NODE_VERSION | cut -d "." -f 1-2) = "v0.6" ]; then
   exit 1 
 fi
 
-#Does a settings.json exist? if no copy the template
-if [ ! -f "settings.json" ]; then
-  echo "Copy the settings template to settings.json..."
-  cp -v settings.json.template settings.json || exit 1
+#Get the name of the settings file
+settings="settings.json"
+a='';
+for arg in $*; do
+  if [ "$a" = "--settings" ] || [ "$a" = "-s" ]; then settings=$arg; fi
+  a=$arg
+done
+
+#Does a $settings exist? if no copy the template
+if [ ! -f $settings ]; then
+  echo "Copy the settings template to $settings..."
+  cp -v settings.json.template $settings || exit 1
 fi
 
 echo "Ensure that all dependencies are up to date..."
@@ -54,9 +62,9 @@ npm install || {
 
 echo "Ensure jQuery is downloaded and up to date..."
 DOWNLOAD_JQUERY="true"
-NEEDED_VERSION="1.7"
+NEEDED_VERSION="1.7.1"
 if [ -f "static/js/jquery.js" ]; then
-  VERSION=$(cat static/js/jquery.js | head -n 3 | grep -o "v[0-9].[0-9]");
+  VERSION=$(cat static/js/jquery.js | head -n 3 | grep -o "v[0-9]\.[0-9]\(\.[0-9]\)\?");
   
   if [ ${VERSION#v} = $NEEDED_VERSION ]; then
     DOWNLOAD_JQUERY="false"
@@ -65,6 +73,21 @@ fi
 
 if [ $DOWNLOAD_JQUERY = "true" ]; then
   curl -lo static/js/jquery.js http://code.jquery.com/jquery-$NEEDED_VERSION.js || exit 1
+fi
+
+echo "Ensure prefixfree is downloaded and up to date..."
+DOWNLOAD_PREFIXFREE="true"
+NEEDED_VERSION="1.0.4"
+if [ -f "static/js/prefixfree.js" ]; then
+  VERSION=$(cat static/js/prefixfree.js | grep "PrefixFree" | grep -o "[0-9].[0-9].[0-9]");
+  
+  if [ $VERSION = $NEEDED_VERSION ]; then
+    DOWNLOAD_PREFIXFREE="false"
+  fi
+fi
+
+if [ $DOWNLOAD_PREFIXFREE = "true" ]; then
+  curl -lo static/js/prefixfree.js -k https://raw.github.com/LeaVerou/prefixfree/master/prefixfree.js || exit 1
 fi
 
 #Remove all minified data to force node creating it new

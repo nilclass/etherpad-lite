@@ -81,6 +81,8 @@ Here is the **[FAQ](https://github.com/Pita/etherpad-lite/wiki/FAQ)**
 ## Next Steps
 You can modify the settings in the file `settings.json`
 
+If you have multiple settings files, you may pass one to `bin/run.sh` using the `-s|--settings` option. This allows you to run multiple Etherpad Lite instances from the same installation.
+
 You should use a dedicated database such as "mysql" if you are planning on using etherpad-lite in a production environment, the "dirty" database driver is only for testing and/or development purposes.
 
 You can update to the latest version with `git pull origin`. The next start with bin/run.sh will update the dependencies
@@ -119,6 +121,10 @@ contribute to Etherpad Lite.
 * [ueberDB](https://github.com/Pita/ueberDB) "transforms every database into a object key value store" - manages all database access
 * [channels](https://github.com/Pita/channels) "Event channels in node.js" - ensures that ueberDB operations are atomic and in series for each key
 * [async-stacktrace](https://github.com/Pita/async-stacktrace) "Improves node.js stacktraces and makes it easier to handle errors"
+
+# Donations
+* [Etherpad Foundation Flattr] (http://flattr.com/thing/71378/Etherpad-Foundation)
+* [Paypal] (http://etherpad.org) <-- Click the donate button
 
 # License
 [Apache License v2](http://www.apache.org/licenses/LICENSE-2.0.html)
