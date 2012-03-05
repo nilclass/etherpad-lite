@@ -20,7 +20,7 @@
     "require-kernel": "1.0.0",
     "socket.io": "0.9.1-1",
     "ueberDB-couch": "0.1.6",
-    "ueberRemoteStorage": "0.1.6",
+    "ueberRemoteStorage": "0.1.7",
     "async": "0.1.15",
     "joose": "3.50.0",
     "express": "2.5.0",
