@@ -331,7 +331,7 @@ Pad.prototype.init = function init(text, callback) {
     function(callback) 
     {
       //try to load the pad
-      _this.storage.get("pad:"+this.id, function(err, value)
+      _this.storage.get("pad:"+_this.id, function(err, value)
       {
         if(ERR(err, callback)) return;
 
