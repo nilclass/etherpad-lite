@@ -708,9 +708,9 @@ function handleClientReady(client, message)
         {
           padManager.getPad(padId, function(err, value)
           {
-            if(ERR(err, callback)) return;
+            if(err) client.json.send({disconnect: "padNotFound", err: err});
             pad = value;
-            callback();
+            callback(err);
           });
         },
         function(callback)

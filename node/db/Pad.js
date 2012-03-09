@@ -323,9 +323,8 @@ Pad.prototype.init = function init(text, callback) {
       // initialize the storage
       storageManager.get(_this.id.split("$")[0], function(err, _storage)
         {
-          if(ERR(err,callback)) return;
           _this.storage = _storage;
-          callback();
+          callback(err);
         });
     },
     function(callback) 
@@ -333,7 +332,7 @@ Pad.prototype.init = function init(text, callback) {
       //try to load the pad
       _this.storage.get("pad:"+_this.id, function(err, value)
       {
-        if(ERR(err, callback)) return;
+        if(err){ callback(err); return;}
 
         //if this pad exists, load it
         if(value != null)
