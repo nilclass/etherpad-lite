@@ -59,14 +59,12 @@ exports.refresh = function(name, callback)
   {
     if(ERR(err, callback)) {console.warn(err+':'+record); return;}
     record = JSON.parse(record);
-    console.warn("got: "+require("util").inspect(record));
     var params = {
       storageAddress: record.ownPadBackDoor || record.storageInfo.template.replace('{category}','documents'),
       bearerToken: record.bearerToken,
       storageApi: record.storageInfo.api
     }
     if(ERR(err, callback)) return;
-    console.warn("backend: "+require("util").inspect(params));
     remote.init(name, params, function(err, _storage)
     {
       console.log("init from settings " + name);
