@@ -1,15 +1,21 @@
+var ERR = require("async-stacktrace");
+var api;
 
-var api = require("../db/OurAPI");
-
-var functions = { 
-  "connect" : ["userAddress", "bearerToken"]
-} 
+exports.setAPI = function(_api){
+  api = _api;
+}
 
 exports.handle = function(functionName, fields, req, res)
 {
+  if(!api)
+  {
+    res.send({code: 3, message: "no api registered", data: null});
+    return;
+  }
+
   //check if this is a valid function name
   var isKnownFunctionname = false;
-  for(var knownFunctionname in functions)
+  for(var knownFunctionname in api.functions)
   {
     if(knownFunctionname == functionName)
     {
@@ -39,9 +45,9 @@ function callAPI(functionName, fields, req, res)
 {
   //put the function parameters in an array
   var functionParams = [];
-  for(var i=0;i<functions[functionName].length;i++)
+  for(var i=0;i<api.functions[functionName].length;i++)
   {
-    functionParams.push(fields[functions[functionName][i]]);
+    functionParams.push(fields[api.functions[functionName][i]]);
   }
   
   //add a callback function to handle the response
