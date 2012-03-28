@@ -11,3 +11,6 @@ bin/convertSettings.json
 *~
 *.patch
 *.DS_Store
+var/minified*
+*.swp
+
