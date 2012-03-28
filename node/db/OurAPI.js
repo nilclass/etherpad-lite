@@ -1,9 +1,8 @@
-
 var url = require('url'),
     http = require('http'),
     https = require('https'),
     redis = require('redis'),
-    settings = require("../utils/Settings");
+    settings = require("../utils/Settings"),
     xml2js = require('xml2js'),
     remoteStorage = require('../db/remoteStorage-node');
 
@@ -11,17 +10,7 @@ exports.functions = {
   "connect" : ["userAddress", "bearerToken"]
 } 
 
-exports.connect = function(userAddress, bearerToken, callback) {
-  maybeStore(incoming.userAddress, incoming.bearerToken, function(result) {
-    if(result) {
-      callback(null);
-    } else {
-      callback('Computer says no');
-    }
-  });
-}
-
-function maybeStore(userAddress, bearerToken, cb) {
+exports.connect = function(userAddress, bearerToken, cb) {
   remoteStorage.getStorageInfo(userAddress, function(err, storageInfo) {
     if(err) {//might be updating a bearer token, but in that case we need to check it:
       initRedis(function(redisClient) {
@@ -36,17 +25,17 @@ function maybeStore(userAddress, bearerToken, cb) {
               if(legit) {
                 data.bearerToken=bearerToken;
                 redisClient.set(userAddress, JSON.stringify(data), function(err, resp) {
-                  cb(true);
+                  cb();
                 });
                 redisClient.quit();
               } else {
                 redisClient.quit();
-                cb(false);
+                cb("apierror", {reason: "illegit attempt to store bearerToken"});
               }
             });
           } else {
             redisClient.quit();
-            cb(false);
+            cb("apierror", {reason: "no storage info found for address given"});
           }
         }); 
       });
@@ -67,7 +56,7 @@ function maybeStore(userAddress, bearerToken, cb) {
             data.bearerToken=bearerToken;
           }
           redisClient.set(userAddress, JSON.stringify(data), function(err, resp) {
-            cb(true);
+            cb();
           });
           redisClient.quit();
         });
