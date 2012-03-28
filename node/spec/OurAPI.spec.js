@@ -12,13 +12,13 @@ describe('ourAPI', function(){
 
     });
 
-    it('checks for existing token', function(){
+    xit('checks for existing token', function(){
     });
 
-    it('creates initial token', function(){
+    xit('creates initial token', function(){
     });
 
-    it('', function(){
+    xit('', function(){
     });
   });
 });
