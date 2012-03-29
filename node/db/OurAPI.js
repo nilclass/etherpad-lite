@@ -30,10 +30,10 @@ exports.connect = function(userAddress, bearerToken, cb) {
 function connectWithoutStorageInfo(userAddress, bearerToken, cb) {
   storageManager.get(userAddress, function(err, data) {
     if(err || !data || !data.storageInfo) {
-      cb("apierror", {reason: "no storage info found for address given"});
+      cb("apierror", {reason: "no storage found for address given"});
       return;
     }
-    checkLegit(bearerToken, data.storageInfo, function(legit) {
+    exports.checkLegit(bearerToken, data.storageInfo, function(legit) {
       if(!legit) {
         cb("apierror", {reason: "illegit attempt to store bearerToken"});
         return;
@@ -62,7 +62,7 @@ function connectWithStorageInfo(userAddress, bearerToken, storageInfo, cb) {
   });
 }
 
-function checkLegit(bearerToken, storageInfo, cb) {
+exports.checkLegit = function(bearerToken, storageInfo, cb) {
   if(storageInfo.template) {
     //upgrade hack:
     if(storageInfo.template.indexOf('proxy.libredocs.org') != -1) {
