@@ -4,7 +4,14 @@ var url = require('url'),
     redis = require('redis'),
     settings = require("../utils/Settings"),
     xml2js = require('xml2js'),
-    remoteStorage = require('../db/remoteStorage-node');
+    remoteStorage,
+    storageManager
+
+// dependency injection to ease testing
+exports.init = function(_storageManager, _remoteStorage){
+  remoteStorage = _remoteStorage || require('../db/remoteStorage-node');
+  storageManager = _storageManager || require('../db/StorageManager');
+}
 
 exports.functions = { 
   "connect" : ["userAddress", "bearerToken"]
@@ -13,69 +20,46 @@ exports.functions = {
 exports.connect = function(userAddress, bearerToken, cb) {
   remoteStorage.getStorageInfo(userAddress, function(err, storageInfo) {
     if(err) {//might be updating a bearer token, but in that case we need to check it:
-      initRedis(function(redisClient) {
-        redisClient.get(userAddress, function(err, resp) {
-          var data;
-          try {
-            data = JSON.parse(resp);
-          } catch(e) {
-          }
-          if(data && data.storageInfo) {
-            checkLegit(bearerToken, data.storageInfo, function(legit) {
-              if(legit) {
-                data.bearerToken=bearerToken;
-                redisClient.set(userAddress, JSON.stringify(data), function(err, resp) {
-                  cb();
-                });
-                redisClient.quit();
-              } else {
-                redisClient.quit();
-                cb("apierror", {reason: "illegit attempt to store bearerToken"});
-              }
-            });
-          } else {
-            redisClient.quit();
-            cb("apierror", {reason: "no storage info found for address given"});
-          }
-        }); 
-      });
+      connectWithoutStorageInfo(userAddress, bearerToken, cb);
     } else {
-      console.log(storageInfo);
-      initRedis(function(redisClient) {
-        redisClient.get(userAddress, function(err, resp) {
-          var data;
-          try {
-            data = JSON.parse(resp);
-          } catch(e) {
-          }
-          data = data || {};
-          if(!data.storageInfo) {
-            data.storageInfo=storageInfo;
-          }
-          if(!data.bearerToken) {//this way noone can actually do any harm with this.
-            data.bearerToken=bearerToken;
-          }
-          redisClient.set(userAddress, JSON.stringify(data), function(err, resp) {
-            cb();
-          });
-          redisClient.quit();
-        });
-      });
+      connectWithStorageInfo(userAddress, bearerToken, storageInfo, cb)
     }
   });
 }
 
-function initRedis(cb) {
-  console.log('initing redis');
-  var redisClient = redis.createClient(settings.redis.port, settings.redis.host);
-  redisClient.on("error", function (err) {
-    console.log("error event - " + redisClient.host + ":" + redisClient.port + " - " + err);
+function connectWithoutStorageInfo(userAddress, bearerToken, cb) {
+  storageManager.get(userAddress, function(err, data) {
+    if(err || !data || !data.storageInfo) {
+      cb("apierror", {reason: "no storage info found for address given"});
+      return;
+    }
+    checkLegit(bearerToken, data.storageInfo, function(legit) {
+      if(!legit) {
+        cb("apierror", {reason: "illegit attempt to store bearerToken"});
+        return;
+      }
+      data.bearerToken=bearerToken;
+      storageManager.set(userAddress, data, function(err, resp) {
+        cb();
+      });
+    });
+  }); 
+}
+
+function connectWithStorageInfo(userAddress, bearerToken, storageInfo, cb) {
+  console.log(storageInfo);
+  storageManager.get(userAddress, function(err, data) {
+    data = data || {};
+    if(!data.storageInfo) {
+      data.storageInfo=storageInfo;
+    }
+    if(!data.bearerToken) {//this way noone can actually do any harm with this.
+      data.bearerToken=bearerToken;
+    }
+    storageManager.set(userAddress, data, function(err, resp) {
+      cb();
+    });
   });
-  redisClient.auth(settings.redis.pwd, function() {
-    console.log('redis auth done');
-    //redisClient.stream.on('connect', cb);
-  });
-  cb(redisClient);
 }
 
 function checkLegit(bearerToken, storageInfo, cb) {
