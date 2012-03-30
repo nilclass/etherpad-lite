@@ -2,10 +2,16 @@ describe('ourAPI', function() {
   var api = require('../db/OurAPI.js');
   var req = {};
   var res = {send: function(){}};
+  var bearerToken = "stub bearer token";
+  var validBearer = "valid bearer";
   var params;
+  function storageOf(params) {
+    return "Storage: " + JSON.stringify(params);
+  }
   var storageManager = { store: {},
-    get: function(key, cb) { cb(!this.store[key], this.store[key]); },
-    set: function(key, value, cb) { this.store[key] = value; cb(); }
+    get: function(name, cb) { cb(!this.store[name], this.store[name]); },
+    init: function(name, info, bearer, cb) { this.store[name] = storageOf(info); cb(); },
+    authenticate: function(name, bearer, cb) { cb(bearer == validBearer); }
   };
 
   beforeEach(function(){
@@ -14,7 +20,6 @@ describe('ourAPI', function() {
 
   describe('with storage info from remoteStorage.getStorageInfo', function(){
     var userAddress = "myaddress@provider.tl";
-    var bearerToken = "stub bearer token";
     var storageInfo = {
       api: "simple",
       template: "http://my.domain.tl/storage/{category}/",
@@ -35,7 +40,7 @@ describe('ourAPI', function() {
     it('creates initial token', function(){
       api.connect(userAddress, bearerToken, function(){
         storageManager.get(userAddress, function(err, value){
-          expect(value.storageInfo).toEqual(storageInfo);
+          expect(value).toEqual(storageOf(storageInfo));
         });
       });
     });
@@ -43,10 +48,10 @@ describe('ourAPI', function() {
     it('keeps existing token in redis', function(){
       original = storageInfo;
       original.template = "original template";
-      storageManager.set(userAddress, {storageInfo: original}, function(){
+      storageManager.init(userAddress, original, bearerToken, function(){
         api.connect(userAddress, bearerToken, function(){
           storageManager.get(userAddress, function(err, value){
-            expect(value.storageInfo).toEqual(original);
+            expect(value).toEqual(storageOf(original));
           });
         });
       });
@@ -82,29 +87,23 @@ describe('ourAPI', function() {
     });
 
     it('uses existing token if legit', function(){
-      api.checkLegit = function(bearerToken, storageInfo, callback) {
-        callback(true);
-      }
-      storageManager.set(userAddress, {storageInfo: storageInfo}, function(){
-        api.connect(userAddress, bearerToken, function(err, data){
+      storageManager.init(userAddress, storageInfo, validBearer, function(){
+        api.connect(userAddress, validBearer, function(err, data){
           expect(err).toBeUndefined();
           storageManager.get(userAddress, function(err, value){
-            expect(value.storageInfo).toEqual(storageInfo);
+            expect(value).toEqual(storageOf(storageInfo));
           });
         });
       });
     });
 
     it('refuses existing token if not legit', function(){
-      api.checkLegit = function(bearerToken, storageInfo, callback) {
-        callback(false);
-      }
-      storageManager.set(userAddress, {storageInfo: storageInfo}, function(){
+      storageManager.init(userAddress, storageInfo, validBearer, function(){
         api.connect(userAddress, bearerToken, function(err, data){
           expect(err).toEqual("apierror");
           // nothing changed
           storageManager.get(userAddress, function(err, value){
-            expect(value.storageInfo).toEqual(storageInfo);
+            expect(value).toEqual(storageOf(storageInfo));
           });
         });
       });
