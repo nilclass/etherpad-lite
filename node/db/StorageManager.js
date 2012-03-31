@@ -24,7 +24,7 @@ var url = require("url");
 var remote = require("./RemoteStorage");
 var settings = require("../utils/Settings");
 var redis = require("redis");
-
+var client;
 
 // cache all remote connections we have
 var storages = {
@@ -32,6 +32,14 @@ var storages = {
   set: function (name, value) { this[':'+name] = value; },
   remove: function (name) { delete this[':'+name]; }
 };
+
+//injecting redisClient so we can replace it for testing
+exports.init = function(_client, _remote) 
+{
+  client = _client || redis.createClient(settings.redis.port, settings.redis.host);
+  client.auth(settings.redis.pwd);
+  if(_remote) remote = _remote;
+}
 
 exports.get = function(name, callback)
 {
@@ -49,34 +57,23 @@ exports.get = function(name, callback)
   });
 }
 
-exports.set = function(name, record, callback){
-  var client = injectedClient || redis.createClient(settings.redis.port, settings.redis.host);
-  var params = {
-    storageAddress: record.ownPadBackDoor || record.storageInfo.template.replace('{category}','documents'),
-    bearerToken: record.bearerToken,
-    storageApi: record.storageInfo.api
-  }
-  remote.init(name, params, function(err, _storage) {
-    console.log("init from params " + name);
-    if(ERR(err, callback)) return;
-    storages.set(name, _storage);
-    callback(null, {storageStatus: 'ready'});
-
-
-  });
-
-}
-
-exports.init = function(name, record, callback)
+exports.set = function(name, record, callback)
 {
-  var client = injectedClient || redis.createClient(settings.redis.port, settings.redis.host);
-  client.auth(settings.redis.pwd);
   var remote_name=unhyphenify(name);
   var params = paramsFromRecord(record);
   initAndCache(name, params, function(err, state){
     if(!err) client.set(remote_name, JSON.stringify(record));
     callback(err, state);
   });
+}
+
+exports.authenticate = function(name, token, callback)
+{
+  var storage = storages.get(name);
+  if(storage.settings.bearerToken == token){
+    callback(true);
+    return;
+  }
 }
 
 function paramsFromRecord(record) {
@@ -88,8 +85,6 @@ function paramsFromRecord(record) {
 }
 exports.refresh = function(name, callback)
 {
-  var client = injectedClient || redis.createClient(settings.redis.port, settings.redis.host);
-  client.auth(settings.redis.pwd);
   var remote_name=unhyphenify(name);
   console.warn("loading "+remote_name+" from db");
   client.get(remote_name, function(err, record)
@@ -99,7 +94,6 @@ exports.refresh = function(name, callback)
     var params = paramsFromRecord(record);
     initAndCache(name, params, callback);
   });
-  client.quit();
 }
 
 function initAndCache(name, params, callback){
@@ -120,15 +114,6 @@ function unhyphenify(string) {
     parts[i]=replacements[parts[i]];
   }
   return parts.join('');
-}
-
-// for testing purposes
-var injectedClient;
-exports.injectClient = function(_client) {
-  injectedClient = _client;
-}
-exports.injectRemote = function(_remote) {
-  remote = _remote;
 }
 
 

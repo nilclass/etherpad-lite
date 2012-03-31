@@ -21,12 +21,9 @@
 
 var ERR = require("async-stacktrace");
 var ueberRemote = require("ueberRemoteStorage");
-// we'll remove the settings once we really move to remote storage
-var settings = require("../utils/Settings");
 var log4js = require('log4js');
 
-
-
+exports.settings = null;
 
 /**
  * Init the database for the given name - later this will be the remoteStorage
@@ -42,6 +39,8 @@ exports.init = function(name, settings, callback)
   {
     //there was an error while initializing the remote storage
     if(ERR(err, callback)) return;
+    exports.settings = settings;
     callback(null, storage);
   });
 }
+
