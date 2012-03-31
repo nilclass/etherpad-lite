@@ -44,3 +44,53 @@ exports.init = function(name, settings, callback)
   });
 }
 
+exports.validate = function(storage, token, callback)
+{
+  if(storage.settings.bearerToken == token){
+    callback(true);
+    return;
+  }
+}
+
+// just dumping it here for later use.
+exports.checkLegit = function(bearerToken, storageInfo, cb) {
+  if(storageInfo.template) {
+    //upgrade hack:
+    if(storageInfo.template.indexOf('proxy.libredocs.org') != -1) {
+      storageInfo.template = 'http://proxy.unhosted.org/CouchDB?'
+        +storageInfo.template.substring('http://proxy.libredocs.org/'.length);
+    }      
+    var parts = storageInfo.template.split('{category}');
+    if(parts.length==2) {
+      var urlObj = url.parse(parts[0]+'documents'+parts[1]+'documents');
+
+      var options = {
+        host: urlObj.hostname,
+        path: urlObj.path + (urlObj.search || ''),
+        headers: {'Authorization': 'Bearer '+bearerToken}
+      };
+      var lib;
+      if(urlObj.protocol=='http:') {
+        lib = http;
+        options.port = urlObj.port || 80;
+      } else if(urlObj.protocol=='https:') {
+        lib = https;
+        options.port = urlObj.port || 443;
+      } else {
+        cb(false);
+        return;
+      }
+      var req = lib.request(options, function(res) {
+        if(res.statusCode==200 || res.statusCode==404) {
+          cb(true);
+        } else {
+          cb(false);
+        }
+      });
+      req.end();
+      return;
+    }
+  }
+  cb(false);
+}
+

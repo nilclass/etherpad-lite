@@ -9,7 +9,10 @@ describe('StorageManager', function() {
   var remote = {
     storageOf: function(params){return {settings: params} ;},
     init: function(name,params,callback){
-      callback(null, this.storageOf(params)) }
+      callback(null, this.storageOf(params)) },
+    validate: function(storage, token, callback) {
+      callback(storage.settings.bearerToken == token);
+    }
   };
   storageManager.init(client, remote);
  
@@ -26,7 +29,7 @@ describe('StorageManager', function() {
     storageApi : 'MyAPI' 
   }
 
-  describe("getting", function() {
+  describe("get", function() {
     it('retrieves values from the client', function(){
       spyOn(client, 'get').andCallFake(function(key, cb){cb(null, JSON.stringify(record))});
       storageManager.get("get me", function (err, value) {
@@ -50,7 +53,7 @@ describe('StorageManager', function() {
       expect((client.get).argsForCall.length).toEqual(1);
     });
   });
-  describe('setting', function(){
+  describe('set', function(){
     it('stores storageInfos to the client', function(){
       spyOn(client, 'set').andCallFake(function(key, value, cb){if(cb) cb(null, null);});
       storageManager.set("set me", record, function (err, state) {
@@ -73,34 +76,59 @@ describe('StorageManager', function() {
       expect(client.get).not.toHaveBeenCalled();
     });
 
-    xit('overwrites existing storage', function() {
+    it('overwrites existing storage', function() {
+      spyOn(client, 'set').andCallFake(function(key, value, cb){if(cb) cb(null, null);});
+      spyOn(client, 'get');
+      var old_record = {
+        storageInfo: record.storageInfo,
+        bearerToken: "old"
+      };
+      storageManager.set("overwrite me", old_record, function (err, state) {
+        storageManager.set("overwrite me", record, function (err, state) {
+          storageManager.get("overwrite me", function (err, storage) {
+            expect(err).toBeNull();
+            expect(storage).toEqual(remote.storageOf(params));
+          });
+        });
+      });
+      expect(client.get).not.toHaveBeenCalled();
+      expect(client.set.callCount).toEqual(2);
+      expect(client.set.argsForCall[1]).toEqual(["overwrite me", 
+        JSON.stringify(record)]);
     });
 
-    xit('refuses invalid storage', function() {
+    it('refuses invalid storage', function() {
+      spyOn(client, 'set');
+      spyOn(remote, 'init').andCallFake(function(name, params, cb){
+        cb('invalid', {reason: "Can't access storage."});
+      });
+      storageManager.set("set me", record, function (err, state) {
+        expect(err).not.toBeNull();
+        expect(state.storageStatus).toEqual('invalid');
+      });
+      expect(client.set).not.toHaveBeenCalled();
     });
 
   });
 
-  describe("authenticating", function() {
-    it('works with identical bearerTokens', function(){
+  describe("authenticate", function() {
+    it('works with valid bearerTokens', function(){
+      spyOn(remote, 'validate').andReturn(true);
       storageManager.set("auth me", record, function (err, state) {
         storageManager.authenticate("auth me", bearerToken, function(legit) {
           expect(legit).toBeTruthy();
+          expect(remote.validate).toHaveBeenCalled();
         });
       });
     });
 
-    xit('works with new bearerTokens', function(){
-      storageManager.authenticate(userAddress, bearerToken, function(legit) {
-        expect(legit).toBeTruthy();
-        expect(storageManager.get(userAddress).settings.bearerToken).toEqual(bearerToken);
-      });
-    });
-
-    xit('refuses invalid bearerTokens', function(){
-      storageManager.authenticate(userAddress, bearerToken, function(legit) {
-        expect(legit).toBeFalsy();
-        expect(storageManager.get(userAddress).settings.bearerToken).toEqual(oldBearerToken);
+    it('refuses invalid bearerTokens', function(){
+      spyOn(remote, 'validate').andReturn(false);
+      storageManager.set("auth me", record, function (err, state) {
+        storageManager.authenticate("auth me", bearerToken, function(legit) {
+          expect(legit).toBeFalsy();
+          expect(remote.validate).toHaveBeenCalled();
+        });
       });
     });
 

@@ -43,7 +43,6 @@ exports.init = function(_client, _remote)
 
 exports.get = function(name, callback)
 {
-  console.log("get " + name);
   var storage = storages.get(name);
   // not in cache
   if(storage != null)
@@ -69,11 +68,7 @@ exports.set = function(name, record, callback)
 
 exports.authenticate = function(name, token, callback)
 {
-  var storage = storages.get(name);
-  if(storage.settings.bearerToken == token){
-    callback(true);
-    return;
-  }
+  remote.validate(storages.get(name), token, callback);
 }
 
 function paramsFromRecord(record) {
@@ -86,7 +81,7 @@ function paramsFromRecord(record) {
 exports.refresh = function(name, callback)
 {
   var remote_name=unhyphenify(name);
-  console.warn("loading "+remote_name+" from db");
+  console.log("loading "+remote_name+" from db");
   client.get(remote_name, function(err, record)
   {
     if(ERR(err, callback)) {console.warn(err+':'+record); return;}
@@ -98,8 +93,11 @@ exports.refresh = function(name, callback)
 
 function initAndCache(name, params, callback){
   remote.init(name, params, function(err, _storage) {
-    console.log("init from settings " + name);
-    if(ERR(err, callback)) return;
+    if(err){
+      _storage.storageStatus = 'invalid';
+      callback(err, _storage);
+      return;
+    }
     storages.set(name, _storage);
     callback(null, {storageStatus: 'ready'});
   });
@@ -114,48 +112,5 @@ function unhyphenify(string) {
     parts[i]=replacements[parts[i]];
   }
   return parts.join('');
-}
-
-
-// just dumping it here for later use.
-exports.checkLegit = function(bearerToken, storageInfo, cb) {
-  if(storageInfo.template) {
-    //upgrade hack:
-    if(storageInfo.template.indexOf('proxy.libredocs.org') != -1) {
-      storageInfo.template = 'http://proxy.unhosted.org/CouchDB?'
-        +storageInfo.template.substring('http://proxy.libredocs.org/'.length);
-    }      
-    var parts = storageInfo.template.split('{category}');
-    if(parts.length==2) {
-      var urlObj = url.parse(parts[0]+'documents'+parts[1]+'documents');
-
-      var options = {
-        host: urlObj.hostname,
-        path: urlObj.path + (urlObj.search || ''),
-        headers: {'Authorization': 'Bearer '+bearerToken}
-      };
-      var lib;
-      if(urlObj.protocol=='http:') {
-        lib = http;
-        options.port = urlObj.port || 80;
-      } else if(urlObj.protocol=='https:') {
-        lib = https;
-        options.port = urlObj.port || 443;
-      } else {
-        cb(false);
-        return;
-      }
-      var req = lib.request(options, function(res) {
-        if(res.statusCode==200 || res.statusCode==404) {
-          cb(true);
-        } else {
-          cb(false);
-        }
-      });
-      req.end();
-      return;
-    }
-  }
-  cb(false);
 }
 
