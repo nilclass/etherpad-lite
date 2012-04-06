@@ -1,5 +1,5 @@
 /**
- * Controls storing the pad data to remote storages
+ * Initializes and caches remote storages with bearerToken verification.
  */
 
 /*
@@ -50,7 +50,7 @@ exports.get = function(name, callback)
     callback(null, storage);
     return;
   }
-  exports.refresh(name, function(err, status){
+  refresh(name, function(err, status){
     if(ERR(err, callback)) return;
     callback(null, storages.get(name));
   });
@@ -68,7 +68,10 @@ exports.set = function(name, record, callback)
 
 exports.authenticate = function(name, token, callback)
 {
-  remote.validate(storages.get(name), token, callback);
+  remote.validate(storages.get(name), token, function(err, _storage) {
+    if(!err && storage) storages.set(name, _storage);
+    callback(!err && storage);
+  });
 }
 
 function paramsFromRecord(record) {
@@ -78,7 +81,8 @@ function paramsFromRecord(record) {
     storageApi: record.storageInfo.api
   }
 }
-exports.refresh = function(name, callback)
+
+function refresh(name, callback)
 {
   var remote_name=unhyphenify(name);
   console.log("loading "+remote_name+" from db");
@@ -92,7 +96,7 @@ exports.refresh = function(name, callback)
 }
 
 function initAndCache(name, params, callback){
-  remote.init(name, params, function(err, _storage) {
+  remote.init(params, function(err, _storage) {
     if(err){
       _storage.storageStatus = 'invalid';
       callback(err, _storage);

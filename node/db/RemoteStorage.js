@@ -25,20 +25,26 @@ var log4js = require('log4js');
 
 exports.settings = null;
 
+exports.setUeberDB = function(_ueber) {
+  ueberRemote = _ueber;
+}
+
 /**
  * Init the database for the given name - later this will be the remoteStorage
  * identifier.
- * @param {userName} the handle for the remote storage
  * @param {remoteSettings} - storageAddress, storageApi and bearerToken
  * @param {Function} callback - if null the function will return the storage.
  */
-exports.init = function(name, settings, callback)
+exports.init = function(settings, callback)
 {
   var storage = new ueberRemote.remote(settings.storageApi, settings, null, log4js.getLogger("remoteDB"));
   storage.init(function(err)
   {
     //there was an error while initializing the remote storage
-    if(ERR(err, callback)) return;
+    if(err){
+      callback('invalid', {reason: "Can't access storage."});
+      return;
+    }
     exports.settings = settings;
     callback(null, storage);
   });
@@ -47,50 +53,14 @@ exports.init = function(name, settings, callback)
 exports.validate = function(storage, token, callback)
 {
   if(storage.settings.bearerToken == token){
-    callback(true);
+    callback(null, storage);
     return;
   }
-}
-
-// just dumping it here for later use.
-exports.checkLegit = function(bearerToken, storageInfo, cb) {
-  if(storageInfo.template) {
-    //upgrade hack:
-    if(storageInfo.template.indexOf('proxy.libredocs.org') != -1) {
-      storageInfo.template = 'http://proxy.unhosted.org/CouchDB?'
-        +storageInfo.template.substring('http://proxy.libredocs.org/'.length);
-    }      
-    var parts = storageInfo.template.split('{category}');
-    if(parts.length==2) {
-      var urlObj = url.parse(parts[0]+'documents'+parts[1]+'documents');
-
-      var options = {
-        host: urlObj.hostname,
-        path: urlObj.path + (urlObj.search || ''),
-        headers: {'Authorization': 'Bearer '+bearerToken}
-      };
-      var lib;
-      if(urlObj.protocol=='http:') {
-        lib = http;
-        options.port = urlObj.port || 80;
-      } else if(urlObj.protocol=='https:') {
-        lib = https;
-        options.port = urlObj.port || 443;
-      } else {
-        cb(false);
-        return;
-      }
-      var req = lib.request(options, function(res) {
-        if(res.statusCode==200 || res.statusCode==404) {
-          cb(true);
-        } else {
-          cb(false);
-        }
-      });
-      req.end();
-      return;
-    }
+  var newSettings = {
+    storageAddress: storage.settings.storageAddress,
+    storageApi: storage.settings.storageApi,
+    bearerToken: token
   }
-  cb(false);
+  exports.init(newSettings, callback);
 }
 

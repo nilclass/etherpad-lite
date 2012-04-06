@@ -1,5 +1,6 @@
 describe('StorageManager', function() {
   var storageManager = require('../db/StorageManager.js');
+
   var client = {
     get: function(){},
     set: function(){},
@@ -8,10 +9,10 @@ describe('StorageManager', function() {
   };
   var remote = {
     storageOf: function(params){return {settings: params} ;},
-    init: function(name,params,callback){
+    init: function(params, callback){
       callback(null, this.storageOf(params)) },
     validate: function(storage, token, callback) {
-      callback(storage.settings.bearerToken == token);
+      callback(storage.settings.bearerToken != token, storage);
     }
   };
   storageManager.init(client, remote);
@@ -42,8 +43,6 @@ describe('StorageManager', function() {
     it('chaches storage', function(){
       spyOn(client, 'get').andCallFake(function(key, cb){cb(null, JSON.stringify(record))});
       storageManager.get("cache me", function (err, value) {
-        expect(err).toBeNull();
-        expect(value).toEqual(remote.storageOf(params));
         storageManager.get("cache me", function (err, value) {
           expect(err).toBeNull();
           expect(value).toEqual(remote.storageOf(params));
@@ -99,7 +98,7 @@ describe('StorageManager', function() {
 
     it('refuses invalid storage', function() {
       spyOn(client, 'set');
-      spyOn(remote, 'init').andCallFake(function(name, params, cb){
+      spyOn(remote, 'init').andCallFake(function(params, cb){
         cb('invalid', {reason: "Can't access storage."});
       });
       storageManager.set("set me", record, function (err, state) {
