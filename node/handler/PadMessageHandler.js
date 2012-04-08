@@ -645,7 +645,7 @@ function handleClientReady(client, message)
     //init storage
     function(callback)
     {
-      storageManager.refresh(padId.split('$')[0], function(err, statusObject)
+      storageManager.get(padId.split('$')[0], function(err, statusObject)
       {
         if(ERR(err, callback)) return;
 

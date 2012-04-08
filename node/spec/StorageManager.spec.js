@@ -15,12 +15,16 @@ describe('StorageManager', function() {
       callback(storage.settings.bearerToken != token, storage);
     }
   };
-  storageManager.init(client, remote);
+
+  beforeEach(function() {
+    storageManager.init(client, remote);
+  });
  
-  var bearerToken = "bearer stub" 
-  // typical record in redis
+  var bearerToken = "bearer stub";
+  var storageInfo = {template: "my template/{category}/", api: "MyAPI"};
+  // typical record in redis:
   var record = {
-    storageInfo: {template: "my template/{category}/", api: "MyAPI"},
+    storageInfo: storageInfo,
     bearerToken: bearerToken
   }
   // initialization params for RemoteStorage
@@ -55,7 +59,7 @@ describe('StorageManager', function() {
   describe('set', function(){
     it('stores storageInfos to the client', function(){
       spyOn(client, 'set').andCallFake(function(key, value, cb){if(cb) cb(null, null);});
-      storageManager.set("set me", record, function (err, state) {
+      storageManager.set("set me", storageInfo, bearerToken, function (err, state) {
         expect(err).toBeNull();
         expect(state.storageStatus).toEqual('ready');
       });
@@ -66,7 +70,7 @@ describe('StorageManager', function() {
     it('caches storage infos', function(){
       spyOn(client, 'set').andCallFake(function(key, value, cb){if(cb) cb(null, null);});
       spyOn(client, 'get');
-      storageManager.set("set and cache me", record, function (err, state) {
+      storageManager.set("set and cache me", storageInfo, bearerToken, function (err, state) {
         storageManager.get("set and cache me", function (err, storage) {
           expect(err).toBeNull();
           expect(storage).toEqual(remote.storageOf(params));
@@ -78,12 +82,8 @@ describe('StorageManager', function() {
     it('overwrites existing storage', function() {
       spyOn(client, 'set').andCallFake(function(key, value, cb){if(cb) cb(null, null);});
       spyOn(client, 'get');
-      var old_record = {
-        storageInfo: record.storageInfo,
-        bearerToken: "old"
-      };
-      storageManager.set("overwrite me", old_record, function (err, state) {
-        storageManager.set("overwrite me", record, function (err, state) {
+      storageManager.set("overwrite me", storageInfo, 'old', function (err, state) {
+        storageManager.set("overwrite me", storageInfo, bearerToken, function (err, state) {
           storageManager.get("overwrite me", function (err, storage) {
             expect(err).toBeNull();
             expect(storage).toEqual(remote.storageOf(params));
@@ -101,7 +101,7 @@ describe('StorageManager', function() {
       spyOn(remote, 'init').andCallFake(function(params, cb){
         cb('invalid', {reason: "Can't access storage."});
       });
-      storageManager.set("set me", record, function (err, state) {
+      storageManager.set("set me", storageInfo, bearerToken, function (err, state) {
         expect(err).not.toBeNull();
         expect(state.storageStatus).toEqual('invalid');
       });
@@ -113,7 +113,7 @@ describe('StorageManager', function() {
   describe("authenticate", function() {
     it('works with valid bearerTokens', function(){
       spyOn(remote, 'validate').andReturn(true);
-      storageManager.set("auth me", record, function (err, state) {
+      storageManager.set("auth me", storageInfo, bearerToken, function (err, state) {
         storageManager.authenticate("auth me", bearerToken, function(legit) {
           expect(legit).toBeTruthy();
           expect(remote.validate).toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('StorageManager', function() {
 
     it('refuses invalid bearerTokens', function(){
       spyOn(remote, 'validate').andReturn(false);
-      storageManager.set("auth me", record, function (err, state) {
+      storageManager.set("auth me", storageInfo, bearerToken, function (err, state) {
         storageManager.authenticate("auth me", bearerToken, function(legit) {
           expect(legit).toBeFalsy();
           expect(remote.validate).toHaveBeenCalled();

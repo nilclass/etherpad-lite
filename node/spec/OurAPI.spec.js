@@ -10,7 +10,7 @@ describe('ourAPI', function() {
   }
   var storageManager = { store: {},
     get: function(name, cb) { cb(!this.store[name], this.store[name]); },
-    init: function(name, info, bearer, cb) { this.store[name] = storageOf(info); cb(); },
+    set: function(name, info, bearer, cb) { this.store[name] = storageOf(info); cb(); },
     authenticate: function(name, bearer, cb) { cb(bearer == validBearer); }
   };
 
@@ -48,7 +48,7 @@ describe('ourAPI', function() {
     it('keeps existing token in redis', function(){
       original = storageInfo;
       original.template = "original template";
-      storageManager.init(userAddress, original, bearerToken, function(){
+      storageManager.set(userAddress, original, bearerToken, function(){
         api.connect(userAddress, bearerToken, function(){
           storageManager.get(userAddress, function(err, value){
             expect(value).toEqual(storageOf(original));
@@ -87,7 +87,7 @@ describe('ourAPI', function() {
     });
 
     it('uses existing token if legit', function(){
-      storageManager.init(userAddress, storageInfo, validBearer, function(){
+      storageManager.set(userAddress, storageInfo, validBearer, function(){
         api.connect(userAddress, validBearer, function(err, data){
           expect(err).toBeUndefined();
           storageManager.get(userAddress, function(err, value){
@@ -98,7 +98,7 @@ describe('ourAPI', function() {
     });
 
     it('refuses existing token if not legit', function(){
-      storageManager.init(userAddress, storageInfo, validBearer, function(){
+      storageManager.set(userAddress, storageInfo, validBearer, function(){
         api.connect(userAddress, bearerToken, function(err, data){
           expect(err).toEqual("apierror");
           // nothing changed

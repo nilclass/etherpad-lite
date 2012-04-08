@@ -26,7 +26,7 @@ var log4js = require('log4js');
 exports.settings = null;
 
 exports.setUeberDB = function(_ueber) {
-  ueberRemote = _ueber;
+  ueberRemote = _ueber || require("ueberRemoteStorage");
 }
 
 /**

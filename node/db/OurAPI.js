@@ -19,7 +19,7 @@ exports.connect = function(userAddress, bearerToken, cb) {
     if(err) {//might be updating a bearer token, but in that case we need to check it:
       connectWithoutStorageInfo(userAddress, bearerToken, cb);
     } else {
-      storageManager.init(userAddress, storageInfo, bearerToken, cb);
+      storageManager.set(userAddress, storageInfo, bearerToken, cb);
     }
   });
 }
