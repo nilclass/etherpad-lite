@@ -56,11 +56,24 @@ exports.get = function(name, callback)
   });
 }
 
-exports.set = function(name, record, callback)
+exports.set = function(name, storageInfo, bearerToken, callback)
 {
+  var storageAddress = storageInfo.template.replace('{category}','documents');
+  // don't use the proxy for couchDB as we don't need cors
+  if (storageInfo.ownPadBackDoor) storageAddress = storageInfo.ownPadBackDoor;
+
+  var params = {
+    storageAddress: storageAddress,
+    bearerToken: bearerToken,
+    storageApi: storageInfo.api
+  };
+
   var remote_name=unhyphenify(name);
-  var params = paramsFromRecord(record);
   initAndCache(name, params, function(err, state){
+    var record = {
+      storageInfo: storageInfo,
+      bearerToken: bearerToken
+    }
     if(!err) client.set(remote_name, JSON.stringify(record));
     callback(err, state);
   });
