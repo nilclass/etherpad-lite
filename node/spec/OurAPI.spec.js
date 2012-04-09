@@ -1,5 +1,5 @@
-describe('ourAPI', function() {
-  var api = require('../db/OurAPI.js');
+describe('API plugins for remote storage', function() {
+  var api = require('../db/API.js');
   var req = {};
   var res = {send: function(){}};
   var bearerToken = "stub bearer token";
