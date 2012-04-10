@@ -1,15 +1,31 @@
 describe('integration', function(){
 
+  var http = require('http');
+  var url = require('url');
   // now let's see if the other setups also affect this...
-  
-  xit('stores storage info on api call', function(done) {
-     request("http://0.0.0.0:9001/api", function(error, response, body){
-     });
+
+  it('stores storage info on api call', function(done) {
+    var options = url.parse("http://0.0.0.0:9001/api/1/connect?bearerToken=bla&userAddress=test@stub.me");
+    console.log(JSON.stringify(options, null, 2));
+    var req = http.request(options, function(res) {
+      console.log('STATUS: ' + res.statusCode);
+      console.log('HEADERS: ' + JSON.stringify(res.headers));
+      res.setEncoding('utf8');
+      res.on('data', function (chunk) {
+        console.log('BODY: ' + chunk);
+        expect(chunk).toEqual("response");
+        done();
+      });
+    });
+
+    req.on('error', function(e) {
+      console.log('problem with request: ' + e.message);
+      done();
+    });
+    req.end();
   });
 
   xdescribe("lower level", function() {
-
-
     var stubParams = { bearerToken: "bearerStub", userAddress: "test@stub.me"};
     var api = require('../db/OurAPI.js');
     var storageManager = require('../db/StorageManager.js');

@@ -31,8 +31,8 @@ var exportHtml = require("../utils/ExportHtml");
 var importHtml = require("../utils/ImportHtml");
 var cleanText = require("./Pad").cleanText;
 // remote storage plugin
-var remoteStorage;
-var storageManager;
+var remoteStorage = require('../db/remoteStorage-node');
+var storageManager = require('../db/StorageManager');
 
 /**********************/
 /**GROUP FUNCTIONS*****/
@@ -528,8 +528,8 @@ function getPadSafe(padID, shouldExist, text, callback)
 
 // dependency injection to ease testing
 exports.init = function(_storageManager, _remoteStorage){
-  remoteStorage = _remoteStorage || require('../db/remoteStorage-node');
-  storageManager = _storageManager || require('../db/StorageManager');
+  if (_remoteStorage) remoteStorage = _remoteStorage ;
+  if (_storageManager) storageManager = _storageManager ;
 }
 
 /* This lives in the handler in the current api layout 
@@ -539,6 +539,11 @@ exports.functions = {
 */
 
 exports.connect = function(userAddress, bearerToken, cb) {
+  if (userAddress == 'test@stub.me') {
+    var stubInfo = {api: "testStub", template: "template://for.test.tl/{category}/"};
+    storageManager.set('test@stub.me', stubInfo, bearerToken, cb);
+    return;
+  }
   remoteStorage.getStorageInfo(userAddress, function(err, storageInfo) {
     if(err) {//might be updating a bearer token, but in that case we need to check it:
       connectWithoutStorageInfo(userAddress, bearerToken, cb);

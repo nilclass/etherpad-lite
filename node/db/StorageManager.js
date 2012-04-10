@@ -41,6 +41,12 @@ exports.init = function(_client, _remote)
   if(_remote) remote = _remote;
 }
 
+function redisClient()
+{
+  if (!client) exports.init();
+  return client;
+}
+
 exports.get = function(name, callback)
 {
   var storage = storages.get(name);
@@ -74,7 +80,7 @@ exports.set = function(name, storageInfo, bearerToken, callback)
       storageInfo: storageInfo,
       bearerToken: bearerToken
     }
-    if(!err) client.set(remote_name, JSON.stringify(record));
+    if(!err) redisClient().set(remote_name, JSON.stringify(record));
     callback(err, state);
   });
 }
@@ -99,7 +105,7 @@ function refresh(name, callback)
 {
   var remote_name=unhyphenify(name);
   console.log("loading "+remote_name+" from db");
-  client.get(remote_name, function(err, record)
+  redisClient().get(remote_name, function(err, record)
   {
     if(ERR(err, callback)) {console.warn(err+':'+record); return;}
     record = JSON.parse(record);
