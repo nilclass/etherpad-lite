@@ -564,6 +564,7 @@ function connectWithoutStorageInfo(userAddress, bearerToken, cb) {
         cb("apierror", {reason: "illegit attempt to store bearerToken"});
         return;
       }
+      cb();
     });
   }); 
 }
