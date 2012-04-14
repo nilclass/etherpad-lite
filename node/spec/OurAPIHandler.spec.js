@@ -1,8 +1,9 @@
-describe('ourAPIHandler', function(){
-  var apiHandler = require('../handler/OurAPIHandler.js');
+describe('APIHandler extensions for remote storage plugin', function(){
+  var apiHandler = require('../handler/APIHandler.js');
+
   var apiStub = {
     functions: {connect: [], error: []},
-    connect: function(callback) {callback()},
+    connect: function(userAddress, bearerToken, callback) {callback()},
     error: function(callback) {callback("error")}
   }
 
@@ -21,22 +22,22 @@ describe('ourAPIHandler', function(){
     });
 
     it('requires registering an api', function(){
-      apiHandler.handle("no-api-registered-yet", null, req, res);
+      apiHandler.handle("no-api-registered-yet", {}, req, res);
       expect(res.send.wasCalled).toEqual(true);
       var args = res.send.mostRecentCall.args;
       var response = args[0];
-      expect(response.code).toEqual(3);
-      expect(response.message).toEqual('no api registered');
+      expect(response.code).toEqual(4);
+      expect(response.message).toEqual('no or wrong API Key');
     });
 
     it('refuses unknown functions', function(){
       apiHandler.setAPI(apiStub);
-      apiHandler.handle("no-function-called-this-way", null, req, res);
+      apiHandler.handle("no-function-called-this-way", {}, req, res);
       expect(res.send.wasCalled).toEqual(true);
       var args = res.send.mostRecentCall.args;
       var response = args[0];
-      expect(response.code).toEqual(3);
-      expect(response.message).toEqual('no such function');
+      expect(response.code).toEqual(4);
+      expect(response.message).toEqual('no or wrong API Key');
     });
 
     it('checks for bearer token', function(){
@@ -45,10 +46,10 @@ describe('ourAPIHandler', function(){
       expect(res.send.wasCalled).toEqual(true);
       var args = res.send.mostRecentCall.args;
       var response = args[0];
-      expect(response.code).toEqual(3);
-      expect(response.message).toEqual('no bearer token send');
+      expect(response.code).toEqual(4);
+      expect(response.message).toEqual('no or wrong API Key');
     });
-    
+
     it('responds with a 0 if no error occured', function(){
       apiHandler.setAPI(apiStub);
       apiHandler.handle("connect", params, req, res);
@@ -57,17 +58,16 @@ describe('ourAPIHandler', function(){
       var response = args[0];
       expect(response.code).toEqual(0);
     });
-    
+
     it('responds with a 2 if an error occured', function(){
       apiHandler.setAPI(apiStub);
-      expect(function (){
-        apiHandler.handle("error", params, req, res);
-      }).toThrow("error");
+      apiHandler.handle("error", params, req, res);
       expect(res.send).toHaveBeenCalled();
       var args = res.send.mostRecentCall.args;
       var response = args[0];
-      expect(response.code).toEqual(2);
-      expect(response.message).toEqual("internal error");
+      expect(response.code).toEqual(4);
+      expect(response.message).toEqual('no or wrong API Key');
     });
-  });
-});
+
+  });  
+});  

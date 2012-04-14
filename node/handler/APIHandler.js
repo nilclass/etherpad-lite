@@ -25,6 +25,11 @@ var api = require("../db/API");
 var padManager = require("../db/PadManager");
 var randomString = CommonCode.require('/pad_utils').randomString;
 
+// dependency injection for testing the remote storage plugin
+exports.setAPI = function(_api){
+  api = _api;
+}
+
 //ensure we have an apikey
 var apikey = null;
 try
@@ -62,7 +67,8 @@ var functions = {
   "setPublicStatus"           : ["padID", "publicStatus"], 
   "getPublicStatus"           : ["padID"], 
   "setPassword"               : ["padID", "password"], 
-  "isPasswordProtected"       : ["padID"]
+  "isPasswordProtected"       : ["padID"],
+  "connect"                   : ["userAddress", "bearerToken"]
 };
 
 /**
@@ -75,7 +81,10 @@ var functions = {
 exports.handle = function(functionName, fields, req, res)
 {
   //check the api key!
-  if(fields["apikey"] != apikey.trim())
+  var keyMissing = (fields["apikey"] != apikey.trim());
+  var bearerAuth = (fields["bearerToken"] && functionName == 'connect');
+
+  if(keyMissing && !bearerAuth)
   {
     res.send({code: 4, message: "no or wrong API Key", data: null});
     return;
@@ -141,6 +150,7 @@ function callAPI(functionName, fields, req, res)
       if(!data)
         data = null;
     
+      res.header("Access-Control-Allow-Origin", "*");
       res.send({code: 0, message: "ok", data: data});
     }
     // parameters were wrong and the api stopped execution, pass the error

@@ -21,27 +21,46 @@
 
 var ERR = require("async-stacktrace");
 var ueberRemote = require("ueberRemoteStorage");
-// we'll remove the settings once we really move to remote storage
-var settings = require("../utils/Settings");
 var log4js = require('log4js');
 
+exports.settings = null;
 
-
+exports.setUeberDB = function(_ueber) {
+  ueberRemote = _ueber || require("ueberRemoteStorage");
+}
 
 /**
  * Init the database for the given name - later this will be the remoteStorage
  * identifier.
- * @param {userName} the handle for the remote storage
  * @param {remoteSettings} - storageAddress, storageApi and bearerToken
  * @param {Function} callback - if null the function will return the storage.
  */
-exports.init = function(name, settings, callback)
+exports.init = function(settings, callback)
 {
   var storage = new ueberRemote.remote(settings.storageApi, settings, null, log4js.getLogger("remoteDB"));
   storage.init(function(err)
   {
     //there was an error while initializing the remote storage
-    if(ERR(err, callback)) return;
+    if(err){
+      callback('invalid', {reason: "Can't access storage."});
+      return;
+    }
+    exports.settings = settings;
     callback(null, storage);
   });
 }
+
+exports.validate = function(storage, token, callback)
+{
+  if(storage.settings.bearerToken == token){
+    callback(null, storage);
+    return;
+  }
+  var newSettings = {
+    storageAddress: storage.settings.storageAddress,
+    storageApi: storage.settings.storageApi,
+    bearerToken: token
+  }
+  exports.init(newSettings, callback);
+}
+
