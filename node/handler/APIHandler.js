@@ -150,6 +150,7 @@ function callAPI(functionName, fields, req, res)
       if(!data)
         data = null;
     
+      res.header("Access-Control-Allow-Origin", "*");
       res.send({code: 0, message: "ok", data: data});
     }
     // parameters were wrong and the api stopped execution, pass the error
