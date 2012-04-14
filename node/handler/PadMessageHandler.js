@@ -28,7 +28,6 @@ var authorManager = require("../db/AuthorManager");
 var readOnlyManager = require("../db/ReadOnlyManager");
 var settings = require('../utils/Settings');
 var securityManager = require("../db/SecurityManager");
-var storageManager = require("../db/StorageManager");
 var log4js = require('log4js');
 var messageLogger = log4js.getLogger("message");
 
@@ -642,24 +641,6 @@ function handleClientReady(client, message)
   }
 
   async.series([
-    //init storage
-    function(callback)
-    {
-      storageManager.get(padId.split('$')[0], function(err, statusObject)
-      {
-        if(ERR(err, callback)) return;
-
-        //we have a storage
-        if(statusObject.storageStatus == "ready")
-        {
-          callback();
-        }
-        else
-        {
-          client.json.send({storageStatus: statusObject.storageStatus})
-        }
-      });
-    },
     //check permissions
     function(callback)
     {
