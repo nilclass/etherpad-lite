@@ -1,4 +1,4 @@
-/**
+/*
  * Initializes and caches remote storages with bearerToken verification.
  */
 
@@ -37,6 +37,11 @@ var storages = {
 exports.init = function(_client, _remote) 
 {
   client = _client || redis.createClient(settings.redis.port, settings.redis.host);
+  client.on("error", function (err) {
+    console.log("Error " + err);
+    // let's fall back to local mem only
+    client = storages;
+  });
   client.auth(settings.redis.pwd);
   if(_remote) remote = _remote;
 }

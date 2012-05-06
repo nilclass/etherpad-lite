@@ -14,7 +14,7 @@ describe('APIHandler extensions for remote storage plugin', function(){
   describe('handles invalid input', function (){
 
     var req = {};
-    var res = { send: function(){} };
+    var res = { send: function(){}, header: function(){} };
     var params = { bearerToken: "bearerStub" };
 
     beforeEach(function(){

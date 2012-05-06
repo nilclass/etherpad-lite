@@ -1,7 +1,7 @@
 describe('API plugins for remote storage', function() {
   var api = require('../db/API.js');
   var req = {};
-  var res = {send: function(){}};
+  var res = {send: function(){}, header: function(){} };
   var bearerToken = "stub bearer token";
   var validBearer = "valid bearer";
   var params;
@@ -56,6 +56,7 @@ describe('API plugins for remote storage', function() {
         });
       });
     });
+    
 
   });
 

@@ -539,6 +539,10 @@ exports.functions = {
 */
 
 exports.connect = function(userAddress, bearerToken, cb) {
+  if (!userAddress) { 
+    cb({name: "apierror", reason: "no user address given"}) 
+    return;
+  };
   if (userAddress == 'test@stub.me') {
     var stubInfo = {api: "testStub", template: "template://for.test.tl/{category}/"};
     storageManager.set('test@stub.me', stubInfo, bearerToken, cb);

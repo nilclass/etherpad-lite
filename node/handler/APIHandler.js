@@ -156,7 +156,7 @@ function callAPI(functionName, fields, req, res)
     // parameters were wrong and the api stopped execution, pass the error
     else if(err.name == "apierror")
     {
-      res.send({code: 1, message: err.message, data: null});
+      res.send({code: 1, message: err.reason, data: null});
     }
     //an unkown error happend
     else
