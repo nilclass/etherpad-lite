@@ -162,7 +162,6 @@ function callAPI(functionName, fields, req, res)
     else
     {
       res.send({code: 2, message: "internal error", data: null});
-      ERR(err);
     }
   });
   
